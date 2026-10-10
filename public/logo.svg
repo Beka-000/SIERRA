@@ -1,0 +1,29 @@
+<svg width="1024" height="768" viewBox="0 0 1024 768" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Mountain peaks -->
+  <path d="M100 350 L200 200 L300 280 L400 160 L500 250 L600 180 L700 300 L800 220 L900 340 L924 350 Z" 
+        fill="#FFFFFF" 
+        stroke="#FFFFFF" 
+        stroke-width="4"/>
+  
+  <!-- SIERRA text -->
+  <text x="512" y="500" 
+        font-family="'Arial Black', sans-serif" 
+        font-size="120" 
+        font-weight="900"
+        fill="#FFFFFF" 
+        text-anchor="middle" 
+        letter-spacing="12">SIERRA</text>
+  
+  <!-- Decorative lines -->
+  <line x1="200" y1="580" x2="420" y2="580" stroke="#FFFFFF" stroke-width="6"/>
+  <line x1="604" y1="580" x2="824" y2="580" stroke="#FFFFFF" stroke-width="6"/>
+  
+  <!-- COFFEE text -->
+  <text x="512" y="650" 
+        font-family="'Arial', sans-serif" 
+        font-size="60" 
+        font-weight="400"
+        fill="#FFFFFF" 
+        text-anchor="middle" 
+        letter-spacing="20">COFFEE</text>
+</svg>
