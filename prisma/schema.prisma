@@ -117,6 +117,7 @@ model User {
   role                  Role              @relation(fields: [roleId], references: [id])
   profile               Profile?
   loyaltyAccount        LoyaltyAccount?
+  carts                 Cart[]
   orders                Order[]
   reservations          Reservation[]
   notifications         Notification[]
@@ -170,13 +171,15 @@ model File {
 // ─────────────────────────────────────────────
 
 model MenuCategory {
-  id         String    @id @default(uuid())
-  title      String
-  sortOrder  Int       @default(0) @map("sort_order")
-  isActive   Boolean   @default(true) @map("is_active")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  imageUrl    String?   @map("image_url")
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
-  products   Product[]
+  products    Product[]
 
   @@map("menu_categories")
 }
@@ -191,8 +194,11 @@ model Product {
   title           String
   description     String?
   price           Decimal   @db.Decimal(10, 2)
+  oldPrice        Decimal?  @map("old_price") @db.Decimal(10, 2)
   weightOrVolume  String?   @map("weight_or_volume")
+  calories        Int?
   allergens       String?
+  composition     String?
   photoFileId     String?   @map("photo_file_id")
   isAvailable     Boolean   @default(true) @map("is_available")
   isRecommended   Boolean   @default(false) @map("is_recommended")
@@ -204,6 +210,7 @@ model Product {
   photoFile       File?              @relation("ProductPhoto", fields: [photoFileId], references: [id], onDelete: SetNull)
   modifiers       ProductModifier[]
   orderItems      OrderItem[]
+  cartItems       CartItem[]
   reviews         Review[]
 
   @@map("products")
@@ -223,6 +230,41 @@ model ProductModifier {
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_modifiers")
+}
+
+// ─────────────────────────────────────────────
+// CARTS
+// ─────────────────────────────────────────────
+
+model Cart {
+  id          String     @id @default(uuid())
+  userId      String?    @map("user_id")
+  sessionId   String?    @map("session_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       CartItem[]
+
+  @@unique([userId])
+  @@unique([sessionId])
+  @@map("carts")
+}
+
+model CartItem {
+  id         String   @id @default(uuid())
+  cartId     String   @map("cart_id")
+  productId  String   @map("product_id")
+  quantity   Int      @default(1)
+  modifiers  Json     @default("[]") // Выбранные модификаторы
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
 }
 
 // ─────────────────────────────────────────────
