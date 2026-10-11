@@ -86,23 +86,23 @@ export default function MenuPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-[#0f0d0b] pt-24 pb-16">
-        <div className="max-w-7xl mx-auto px-6">
+      <main className="min-h-screen bg-[#0f0d0b] pt-20 sm:pt-24 pb-12 sm:pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Заголовок */}
-          <div className="mb-12">
+          <div className="mb-8 sm:mb-12">
             <h1
-              className="text-4xl md:text-5xl font-semibold text-[#f5f0e8] mb-4"
+              className="text-3xl sm:text-4xl md:text-5xl font-semibold text-[#f5f0e8] mb-3 sm:mb-4"
               style={{ fontFamily: "var(--font-display)" }}
             >
               Наше меню
             </h1>
-            <p className="text-[rgba(245,240,232,0.6)] max-w-2xl">
+            <p className="text-sm sm:text-base text-[rgba(245,240,232,0.6)] max-w-2xl">
               Авторские кофейные напитки, свежая выпечка и вкусные десерты
             </p>
           </div>
 
           {/* Поиск и сортировка */}
-          <div className="flex flex-col md:flex-row gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 sm:mb-8">
             {/* Поиск */}
             <form onSubmit={handleSearch} className="flex-1">
               <div className="relative">
@@ -111,12 +111,12 @@ export default function MenuPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Поиск по меню..."
-                  className="w-full px-4 py-3 pl-12 bg-[#161411] border border-white/[0.08] rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition"
+                  className="w-full px-4 py-3 pl-11 sm:pl-12 bg-[#161411] border border-white/[0.08] rounded-xl text-sm sm:text-base text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition"
                 />
                 <svg
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
-                  width="20"
-                  height="20"
+                  className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-white/30"
+                  width="18"
+                  height="18"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -132,7 +132,7 @@ export default function MenuPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-3 bg-[#161411] border border-white/[0.08] rounded-xl text-[#f5f0e8] focus:outline-none focus:border-[#c9a96e]/40 transition cursor-pointer"
+              className="px-4 py-3 bg-[#161411] border border-white/[0.08] rounded-xl text-sm sm:text-base text-[#f5f0e8] focus:outline-none focus:border-[#c9a96e]/40 transition cursor-pointer min-w-0 sm:min-w-[200px]"
             >
               <option value="default">По умолчанию</option>
               <option value="recommended">Рекомендуемые</option>
@@ -144,10 +144,10 @@ export default function MenuPage() {
           </div>
 
           {/* Категории */}
-          <div className="flex flex-wrap gap-2 mb-10">
+          <div className="flex flex-wrap gap-2 mb-8 sm:mb-10">
             <button
               onClick={() => handleCategoryClick(null)}
-              className={`px-5 py-2 rounded-full text-sm border transition ${
+              className={`px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm border transition active:scale-95 ${
                 selectedCategory === null
                   ? "bg-[#c9a96e] border-[#c9a96e] text-[#0f0d0b] font-medium"
                   : "border-white/[0.08] text-[rgba(245,240,232,0.5)] hover:border-[#c9a96e]/40 hover:text-[#c9a96e]"
@@ -159,7 +159,7 @@ export default function MenuPage() {
               <button
                 key={category.id}
                 onClick={() => handleCategoryClick(category.id)}
-                className={`px-5 py-2 rounded-full text-sm border transition ${
+                className={`px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm border transition active:scale-95 ${
                   selectedCategory === category.id
                     ? "bg-[#c9a96e] border-[#c9a96e] text-[#0f0d0b] font-medium"
                     : "border-white/[0.08] text-[rgba(245,240,232,0.5)] hover:border-[#c9a96e]/40 hover:text-[#c9a96e]"
@@ -173,13 +173,13 @@ export default function MenuPage() {
 
           {/* Товары */}
           {loading ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {[...Array(6)].map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-2xl bg-[#161411] border border-white/[0.06] p-6 animate-pulse"
+                  className="rounded-2xl bg-[#161411] border border-white/[0.06] p-5 sm:p-6 animate-pulse"
                 >
-                  <div className="w-full h-48 bg-white/5 rounded-xl mb-4" />
+                  <div className="w-full aspect-square bg-white/5 rounded-xl mb-4" />
                   <div className="h-4 bg-white/5 rounded w-3/4 mb-2" />
                   <div className="h-3 bg-white/5 rounded w-full mb-4" />
                   <div className="h-6 bg-white/5 rounded w-1/3" />
@@ -187,11 +187,11 @@ export default function MenuPage() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+            <div className="text-center py-16 sm:py-20">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
                 <svg
-                  width="28"
-                  height="28"
+                  width="24"
+                  height="24"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -202,34 +202,34 @@ export default function MenuPage() {
                   <path d="m21 21-4.35-4.35" />
                 </svg>
               </div>
-              <p className="text-[rgba(245,240,232,0.4)]">
+              <p className="text-sm sm:text-base text-[rgba(245,240,232,0.4)] px-4">
                 Товары не найдены. Попробуйте изменить параметры поиска.
               </p>
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {products.map((product) => (
                 <Link
                   key={product.id}
                   href={`/menu/${product.id}`}
-                  className="group relative rounded-2xl bg-[#161411] border border-white/[0.06] p-6 hover:border-[#c9a96e]/25 transition-all duration-300 hover:-translate-y-1"
+                  className="group relative rounded-2xl bg-[#161411] border border-white/[0.06] p-5 sm:p-6 hover:border-[#c9a96e]/25 transition-all duration-300 hover:sm:-translate-y-1 active:scale-[0.98] sm:active:scale-100"
                 >
                   {/* Бейджи */}
-                  <div className="absolute top-5 right-5 flex flex-col gap-2">
+                  <div className="absolute top-4 sm:top-5 right-4 sm:right-5 flex flex-col gap-1.5 sm:gap-2 z-10">
                     {product.isRecommended && (
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#c9a96e]/15 text-[#c9a96e] border border-[#c9a96e]/25">
+                      <span className="px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-[#c9a96e]/15 text-[#c9a96e] border border-[#c9a96e]/25">
                         Хит
                       </span>
                     )}
                     {product.oldPrice && (
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/25">
+                      <span className="px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/25">
                         Скидка
                       </span>
                     )}
                   </div>
 
                   {/* Изображение */}
-                  <div className="w-full aspect-square rounded-xl bg-white/[0.02] mb-5 overflow-hidden">
+                  <div className="w-full aspect-square rounded-xl bg-white/[0.02] mb-4 sm:mb-5 overflow-hidden">
                     {product.imageUrl ? (
                       <img
                         src={product.imageUrl}
@@ -237,14 +237,14 @@ export default function MenuPage() {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-5xl">
+                      <div className="w-full h-full flex items-center justify-center text-4xl sm:text-5xl">
                         ☕
                       </div>
                     )}
                   </div>
 
                   {/* Категория */}
-                  <p className="text-xs text-[rgba(245,240,232,0.35)] mb-1.5">
+                  <p className="text-[10px] sm:text-xs text-[rgba(245,240,232,0.35)] mb-1.5">
                     {product.category.title}
                   </p>
 

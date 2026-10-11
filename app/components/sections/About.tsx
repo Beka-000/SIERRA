@@ -43,24 +43,24 @@ const values = [
 
 export default function About() {
   return (
-    <section id="about" className="relative py-28 overflow-hidden">
+    <section id="about" className="relative py-16 sm:py-20 lg:py-28 overflow-hidden">
       {/* Фоновый акцент */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-[#c9a96e]/[0.04] blur-3xl pointer-events-none" />
+      <div className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-[#c9a96e]/[0.04] blur-3xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
         {/* Шапка */}
-        <div className="max-w-2xl mb-16">
-          <p className="text-xs font-medium tracking-widest uppercase text-[#c9a96e] mb-4">
+        <div className="max-w-2xl mb-12 sm:mb-16">
+          <p className="text-xs font-medium tracking-widest uppercase text-[#c9a96e] mb-3 sm:mb-4">
             О нас
           </p>
           <h2
-            className="text-4xl md:text-5xl font-semibold text-[#f5f0e8] leading-tight mb-5"
+            className="text-3xl sm:text-4xl md:text-5xl font-semibold text-[#f5f0e8] leading-tight mb-4 sm:mb-5"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Кофейня, которая живёт кофе
           </h2>
-          <p className="text-[rgba(245,240,232,0.5)] text-lg leading-relaxed">
+          <p className="text-[rgba(245,240,232,0.5)] text-base sm:text-lg leading-relaxed">
             Sierra Coffee — это не просто место для чашки кофе. Мы создаём опыт,
             где каждая деталь продумана: от зерна до интерьера. Наша команда бариста
             — это увлечённые профессионалы, которые умеют удивлять.
@@ -68,16 +68,16 @@ export default function About() {
         </div>
 
         {/* Два блока: текст + карточки */}
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
+        <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-start">
 
           {/* Левая — история */}
           <div>
-            <div className="relative rounded-2xl overflow-hidden bg-[#161411] border border-white/[0.06] p-8">
+            <div className="relative rounded-2xl overflow-hidden bg-[#161411] border border-white/[0.06] p-6 sm:p-8">
               {/* Декор-линия */}
-              <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[#c9a96e]/40 to-transparent" />
+              <div className="hidden sm:block absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[#c9a96e]/40 to-transparent" />
 
               <blockquote
-                className="text-xl leading-relaxed text-[rgba(245,240,232,0.75)] mb-6"
+                className="text-lg sm:text-xl leading-relaxed text-[rgba(245,240,232,0.75)] mb-6"
                 style={{ fontFamily: "var(--font-display)" }}
               >
                 «Мы открылись с одной целью — доказать, что хороший кофе
@@ -85,20 +85,20 @@ export default function About() {
               </blockquote>
 
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#c9a96e]/10 border border-[#c9a96e]/20 flex items-center justify-center">
+                <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#c9a96e]/10 border border-[#c9a96e]/20 flex items-center justify-center">
                   <span className="text-[#c9a96e] font-semibold text-sm">АС</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-[#f5f0e8]">Айдос Смаилов</p>
-                  <p className="text-xs text-[rgba(245,240,232,0.4)]">Основатель Sierra Coffee</p>
+                  <p className="text-xs text-[rgba(245,240,232,0.4)] truncate">Основатель Sierra Coffee</p>
                 </div>
               </div>
 
               {/* Разделитель */}
-              <div className="my-8 h-px bg-white/[0.06]" />
+              <div className="my-6 sm:my-8 h-px bg-white/[0.06]" />
 
               {/* Мини-факты */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-4 sm:gap-6">
                 {[
                   { label: "Год открытия",  value: "2021" },
                   { label: "Город",         value: "Бишкек" },
@@ -119,9 +119,9 @@ export default function About() {
             {values.map((v) => (
               <div
                 key={v.title}
-                className="rounded-2xl bg-[#161411] border border-white/[0.06] p-6 hover:border-[#c9a96e]/20 transition-colors duration-300 group"
+                className="rounded-2xl bg-[#161411] border border-white/[0.06] p-5 sm:p-6 hover:border-[#c9a96e]/20 transition-colors duration-300 group"
               >
-                <div className="w-10 h-10 rounded-xl bg-[#c9a96e]/[0.08] flex items-center justify-center mb-4 group-hover:bg-[#c9a96e]/[0.14] transition">
+                <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-[#c9a96e]/[0.08] flex items-center justify-center mb-4 group-hover:bg-[#c9a96e]/[0.14] transition">
                   {v.icon}
                 </div>
                 <h3 className="text-sm font-semibold text-[#f5f0e8] mb-2">{v.title}</h3>

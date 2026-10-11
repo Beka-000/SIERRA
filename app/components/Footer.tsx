@@ -68,13 +68,13 @@ export default function Footer() {
       {/* Верхняя золотая линия */}
       <div className="h-px bg-gradient-to-r from-transparent via-[#c9a96e]/30 to-transparent" />
 
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 sm:gap-10">
 
           {/* Бренд */}
-          <div className="col-span-2 lg:col-span-2">
+          <div className="sm:col-span-2 lg:col-span-2">
             <div className="flex items-center gap-2.5 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-[#c9a96e]/10 border border-[#c9a96e]/25 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-[#c9a96e]/10 border border-[#c9a96e]/25 flex items-center justify-center flex-shrink-0">
                 <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
                   <path d="M6 12h20v2a10 10 0 01-20 0v-2z" stroke="#c9a96e" strokeWidth="1.5" strokeLinejoin="round"/>
                   <path d="M10 12V8a6 6 0 0112 0v4" stroke="#c9a96e" strokeWidth="1.5" strokeLinecap="round"/>
@@ -89,7 +89,7 @@ export default function Footer() {
               </span>
             </div>
 
-            <p className="text-sm leading-relaxed text-[rgba(245,240,232,0.4)] max-w-xs mb-6">
+            <p className="text-sm leading-relaxed text-[rgba(245,240,232,0.4)] max-w-sm mb-6">
               Уютная кофейня в Бишкеке. Авторский кофе, свежая выпечка
               и атмосфера, в которой хочется задержаться.
             </p>
@@ -103,7 +103,7 @@ export default function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={s.label}
-                  className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.07] text-[rgba(245,240,232,0.35)] flex items-center justify-center hover:border-[#c9a96e]/30 hover:text-[#c9a96e] transition"
+                  className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.07] text-[rgba(245,240,232,0.35)] flex items-center justify-center hover:border-[#c9a96e]/30 hover:text-[#c9a96e] transition active:scale-95"
                 >
                   {s.icon}
                 </a>
@@ -114,15 +114,15 @@ export default function Footer() {
           {/* Ссылки */}
           {footerLinks.map((group) => (
             <div key={group.title}>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[rgba(245,240,232,0.3)] mb-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[rgba(245,240,232,0.3)] mb-4 sm:mb-5">
                 {group.title}
               </p>
-              <ul className="space-y-3">
+              <ul className="space-y-2.5 sm:space-y-3">
                 {group.links.map((l) => (
                   <li key={l.label}>
                     <a
                       href={l.href}
-                      className="text-sm text-[rgba(245,240,232,0.45)] hover:text-[#f5f0e8] transition-colors"
+                      className="text-sm text-[rgba(245,240,232,0.45)] hover:text-[#f5f0e8] transition-colors inline-block"
                     >
                       {l.label}
                     </a>
@@ -134,11 +134,11 @@ export default function Footer() {
         </div>
 
         {/* Нижняя строка */}
-        <div className="mt-14 pt-6 border-t border-white/[0.05] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-[rgba(245,240,232,0.25)]">
+        <div className="mt-12 sm:mt-14 pt-6 border-t border-white/[0.05] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-[rgba(245,240,232,0.25)] text-center sm:text-left">
             © {year} Sierra Coffee. Все права защищены.
           </p>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5">
             {[
               { label: "Политика конфиденциальности", href: "/privacy" },
               { label: "Оферта",                      href: "/terms" },
@@ -146,7 +146,7 @@ export default function Footer() {
               <a
                 key={l.label}
                 href={l.href}
-                className="text-xs text-[rgba(245,240,232,0.25)] hover:text-[rgba(245,240,232,0.5)] transition"
+                className="text-xs text-[rgba(245,240,232,0.25)] hover:text-[rgba(245,240,232,0.5)] transition whitespace-nowrap"
               >
                 {l.label}
               </a>

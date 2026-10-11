@@ -24,12 +24,12 @@ export default function CartPage() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-[#0f0d0b] pt-24 pb-16">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex items-center justify-center py-20">
+        <main className="min-h-screen bg-[#0f0d0b] pt-20 sm:pt-24 pb-12 sm:pb-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="flex items-center justify-center py-16 sm:py-20">
               <div className="text-center">
-                <div className="w-12 h-12 border-4 border-white/[0.1] border-t-[#c9a96e] rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-sm text-white/40">Загрузка корзины...</p>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-white/[0.1] border-t-[#c9a96e] rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-xs sm:text-sm text-white/40">Загрузка корзины...</p>
               </div>
             </div>
           </div>
@@ -44,27 +44,27 @@ export default function CartPage() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-[#0f0d0b] pt-24 pb-16">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="max-w-2xl mx-auto text-center py-20">
+        <main className="min-h-screen bg-[#0f0d0b] pt-20 sm:pt-24 pb-12 sm:pb-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="max-w-2xl mx-auto text-center py-16 sm:py-20">
               {/* Иконка пустой корзины */}
-              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,232,0.3)" strokeWidth="1.5">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-5 sm:mb-6 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+                <svg className="w-9 h-9 sm:w-10 sm:h-10" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,232,0.3)" strokeWidth="1.5">
                   <path d="M9 2L7 6M17 2l2 4M21 6H3M5 6h14l-1 14H6L5 6z"/>
                   <path d="M10 11v6M14 11v6"/>
                 </svg>
               </div>
 
-              <h1 className="text-3xl font-semibold text-[#f5f0e8] mb-3">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-[#f5f0e8] mb-3 px-4">
                 Ваша корзина пуста
               </h1>
-              <p className="text-[rgba(245,240,232,0.6)] mb-8">
+              <p className="text-sm sm:text-base text-[rgba(245,240,232,0.6)] mb-6 sm:mb-8 px-4">
                 Добавьте товары из меню, чтобы оформить заказ
               </p>
 
               <Link
                 href="/menu"
-                className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl bg-[#c9a96e] text-[#0f0d0b] text-sm font-semibold hover:bg-[#d4b87a] transition"
+                className="inline-flex items-center justify-center gap-2 h-12 sm:h-12 px-6 sm:px-8 rounded-xl bg-[#c9a96e] text-[#0f0d0b] text-sm font-semibold hover:bg-[#d4b87a] transition active:scale-95"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M19 12H5M12 19l-7-7 7-7"/>

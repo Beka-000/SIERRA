@@ -266,3 +266,566 @@ body {
   background-clip: text;
 }
 
+
+/* ─── Адаптивность и безопасные зоны ─────────────────────────────────────────── */
+
+/* Безопасные отступы для iPhone с вырезами */
+@supports (padding: env(safe-area-inset-left)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Предотвращение горизонтальной прокрутки */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Адаптивные контейнеры с правильными паддингами */
+.container-responsive {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: clamp(1rem, 4vw, 1.5rem);
+  padding-right: clamp(1rem, 4vw, 1.5rem);
+}
+
+@media (min-width: 640px) {
+  .container-responsive { max-width: 640px; }
+}
+
+@media (min-width: 768px) {
+  .container-responsive { max-width: 768px; }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive { max-width: 1024px; }
+}
+
+@media (min-width: 1280px) {
+  .container-responsive { max-width: 1280px; }
+}
+
+@media (min-width: 1536px) {
+  .container-responsive { max-width: 1536px; }
+}
+
+/* Адаптивные размеры шрифтов */
+.text-responsive-xs { font-size: clamp(0.6875rem, 0.65rem + 0.15vw, 0.75rem); }
+.text-responsive-sm { font-size: clamp(0.8125rem, 0.75rem + 0.25vw, 0.875rem); }
+.text-responsive-base { font-size: clamp(0.875rem, 0.8rem + 0.3vw, 1rem); }
+.text-responsive-lg { font-size: clamp(1rem, 0.9rem + 0.4vw, 1.125rem); }
+.text-responsive-xl { font-size: clamp(1.125rem, 1rem + 0.5vw, 1.25rem); }
+.text-responsive-2xl { font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem); }
+.text-responsive-3xl { font-size: clamp(1.5rem, 1.3rem + 0.8vw, 1.875rem); }
+.text-responsive-4xl { font-size: clamp(1.875rem, 1.5rem + 1.5vw, 2.25rem); }
+.text-responsive-5xl { font-size: clamp(2.25rem, 1.8rem + 2vw, 3rem); }
+.text-responsive-6xl { font-size: clamp(2.5rem, 2rem + 2.5vw, 3.75rem); }
+
+/* Адаптивные отступы */
+.spacing-responsive-sm { margin: clamp(0.5rem, 1vw, 1rem); }
+.spacing-responsive-md { margin: clamp(1rem, 2vw, 1.5rem); }
+.spacing-responsive-lg { margin: clamp(1.5rem, 3vw, 2rem); }
+.spacing-responsive-xl { margin: clamp(2rem, 4vw, 3rem); }
+.spacing-responsive-2xl { margin: clamp(3rem, 5vw, 4rem); }
+
+/* Утилита для предотвращения переполнения в Flexbox/Grid */
+.min-w-0 { min-width: 0; }
+.min-h-0 { min-height: 0; }
+
+/* Адаптивная золотая кнопка */
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.625rem, 1vw, 0.75rem) clamp(1.25rem, 3vw, 1.75rem);
+  font-size: clamp(0.8125rem, 1vw, 0.875rem);
+  font-weight: 600;
+  color: #0f0d0b;
+  background: linear-gradient(135deg, #c9a96e 0%, #d4b87a 100%);
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(201, 169, 110, 0.3);
+}
+
+.btn-gold:active {
+  transform: translateY(0);
+}
+
+/* Улучшенная видимость фокуса для доступности */
+*:focus-visible {
+  outline: 2px solid #c9a96e;
+  outline-offset: 2px;
+}
+
+/* Адаптивные таблицы - горизонтальный скролл только где нужно */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  /* Карточное отображение таблиц на мобильных */
+  .table-card-mobile {
+    display: block;
+  }
+  
+  .table-card-mobile thead {
+    display: none;
+  }
+  
+  .table-card-mobile tbody,
+  .table-card-mobile tr,
+  .table-card-mobile td {
+    display: block;
+    width: 100%;
+  }
+  
+  .table-card-mobile tr {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  
+  .table-card-mobile td {
+    text-align: right;
+    padding: 0.5rem 0;
+    border: none;
+    position: relative;
+  }
+  
+  .table-card-mobile td::before {
+    content: attr(data-label);
+    float: left;
+    font-weight: 600;
+    color: rgba(245, 240, 232, 0.6);
+  }
+}
+
+/* Touch-friendly - минимальный размер кликабельных элементов */
+@media (hover: none) {
+  button,
+  a,
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Адаптивная сетка для карточек товаров */
+.product-grid {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+
+@media (min-width: 640px) {
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  }
+}
+
+/* Улучшенная анимация для мобильных (меньше движения) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Кнопка outline */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.625rem, 1vw, 0.75rem) clamp(1.25rem, 3vw, 1.75rem);
+  font-size: clamp(0.8125rem, 1vw, 0.875rem);
+  font-weight: 600;
+  color: #f5f0e8;
+  background: transparent;
+  border: 1.5px solid rgba(201, 169, 110, 0.3);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-outline:hover {
+  border-color: #c9a96e;
+  background: rgba(201, 169, 110, 0.1);
+  transform: translateY(-2px);
+}
+
+.btn-outline:active {
+  transform: translateY(0);
+}
+
+/* Анимации */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.3;
+  }
+  90% {
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-100vh) translateX(20px);
+  }
+}
+
+.animate-float {
+  animation: float 20s ease-in-out infinite;
+}
+
+/* Tailwind breakpoint расширение для xs */
+@media (min-width: 360px) {
+  .xs\:inline { display: inline; }
+  .xs\:text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
+}
+
+/* ─── Адаптивные формы ──────────────────────────────────────────────────────── */
+
+/* Контейнер формы */
+.form-container {
+  width: 100%;
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+  background: rgba(22, 20, 17, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .form-container {
+    max-width: 32rem;
+  }
+}
+
+/* Поля ввода */
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: clamp(0.75rem, 2vw, 0.875rem) clamp(1rem, 3vw, 1.25rem);
+  background: rgba(22, 20, 17, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  color: #f5f0e8;
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  transition: all 0.2s ease;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: rgba(245, 240, 232, 0.3);
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  outline: none;
+  border-color: rgba(201, 169, 110, 0.4);
+  background: rgba(22, 20, 17, 0.9);
+}
+
+.form-textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+/* Лейблы */
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: clamp(0.8125rem, 1.5vw, 0.875rem);
+  font-weight: 500;
+  color: rgba(245, 240, 232, 0.8);
+}
+
+/* Ошибки */
+.form-error {
+  margin-top: 0.5rem;
+  font-size: clamp(0.75rem, 1.5vw, 0.8125rem);
+  color: #ef4444;
+}
+
+/* Кнопки форм */
+.form-button {
+  width: 100%;
+  padding: clamp(0.875rem, 2vw, 1rem) clamp(1.25rem, 3vw, 1.5rem);
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  font-weight: 600;
+  color: #0f0d0b;
+  background: linear-gradient(135deg, #c9a96e 0%, #d4b87a 100%);
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.form-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(201, 169, 110, 0.3);
+}
+
+.form-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Группа полей */
+.form-group {
+  margin-bottom: clamp(1rem, 3vw, 1.5rem);
+}
+
+/* Разделитель */
+.form-divider {
+  display: flex;
+  align-items: center;
+  margin: clamp(1.5rem, 4vw, 2rem) 0;
+  color: rgba(245, 240, 232, 0.3);
+  font-size: clamp(0.75rem, 1.5vw, 0.8125rem);
+}
+
+.form-divider::before,
+.form-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.form-divider::before {
+  margin-right: 1rem;
+}
+
+.form-divider::after {
+  margin-left: 1rem;
+}
+
+/* Чекбоксы и радио */
+.form-checkbox,
+.form-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.form-checkbox input,
+.form-radio input {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+}
+
+/* Адаптивная сетка для форм */
+@media (min-width: 640px) {
+  .form-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* Auth страницы - центрирование */
+.auth-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 2rem);
+  background: #0f0d0b;
+}
+
+/* ─── Админ-панель адаптивность ─────────────────────────────────────────────── */
+
+/* Адаптивные таблицы для админки */
+@media (max-width: 1024px) {
+  .admin-table-responsive {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.75rem;
+  }
+  
+  .admin-table-responsive table {
+    min-width: 800px;
+  }
+}
+
+/* Карточная версия таблиц на мобильных */
+@media (max-width: 640px) {
+  .admin-table-cards {
+    display: block !important;
+  }
+  
+  .admin-table-cards thead {
+    display: none;
+  }
+  
+  .admin-table-cards tbody,
+  .admin-table-cards tr {
+    display: block;
+    width: 100%;
+  }
+  
+  .admin-table-cards tr {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    background: rgba(22, 20, 17, 0.5);
+  }
+  
+  .admin-table-cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border: none;
+    text-align: right;
+  }
+  
+  .admin-table-cards td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: rgba(245, 240, 232, 0.6);
+    text-align: left;
+    flex: 1;
+  }
+  
+  .admin-table-cards td:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+}
+
+/* Адаптивная статистика */
+.admin-stats-grid {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+}
+
+/* Адаптивные кнопки действий */
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .admin-actions {
+    width: 100%;
+  }
+  
+  .admin-actions button,
+  .admin-actions a {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+}
+
+/* Адаптивные модальные окна */
+@media (max-width: 640px) {
+  .admin-modal {
+    width: calc(100% - 2rem) !important;
+    max-width: 100% !important;
+    margin: 1rem !important;
+    max-height: calc(100vh - 2rem) !important;
+  }
+}
+
+/* Адаптивные формы админки */
+.admin-form-grid {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .admin-form-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin-form-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Скрыть текст кнопок на мобильных, оставить только иконки */
+@media (max-width: 480px) {
+  .admin-button-icon-only .button-text {
+    display: none;
+  }
+  
+  .admin-button-icon-only {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
+
+/* Адаптивный Sidebar */
+@media (max-width: 1023px) {
+  .admin-sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .admin-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 40;
+  }
+}

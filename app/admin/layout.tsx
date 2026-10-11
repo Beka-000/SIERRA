@@ -87,16 +87,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         />
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col lg:ml-64">
+        <div className="flex-1 flex flex-col lg:ml-64 min-w-0">
           <AdminTopBar
             userName={session.name}
             userEmail={session.email}
             onMenuToggle={() => setSidebarOpen((v) => !v)}
           />
 
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">
             <Breadcrumbs />
-            {children}
+            <div className="min-w-0">
+              {children}
+            </div>
           </main>
         </div>
       </div>

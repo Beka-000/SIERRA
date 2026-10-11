@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   description:
     "Уютная кофейня Sierra Coffee. Авторский кофе, свежая выпечка, завтраки и обеды. Онлайн-заказ и бронирование столиков.",
   keywords: "кофейня, кофе, Бишкек, Sierra Coffee, завтрак, бронирование",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
   openGraph: {
     title: "Sierra Coffee",
     description: "Уютная кофейня в Бишкеке. Авторский кофе и вкусная еда.",
