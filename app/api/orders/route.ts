@@ -12,15 +12,15 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getCurrentSession();
     
-    // Для гостей разрешаем создавать заказы
-    // if (!session) {
-    //   return NextResponse.json(
-    //     { error: "Unauthorized" },
-    //     { status: 401 }
-    //   );
-    // }
-
     const body = await request.json();
+    
+    console.log("[Orders API] Creating order:", {
+      hasSession: !!session,
+      userId: session?.userId,
+      hasItems: !!body.items,
+      itemsCount: body.items?.length || 0,
+    });
+    
     const {
       customerName,
       customerPhone,
@@ -53,31 +53,10 @@ export async function POST(request: NextRequest) {
       // 1. Загружаем корзину пользователя
       let cartItems;
       
-      if (session) {
-        // Для авторизованных пользователей берем корзину из БД
-        const cart = await tx.cart.findUnique({
-          where: { userId: session.userId },
-          include: {
-            items: {
-              include: {
-                product: true,
-              },
-            },
-          },
-        });
-
-        if (!cart || cart.items.length === 0) {
-          throw new Error("Cart is empty");
-        }
-
-        cartItems = cart.items;
-      } else {
-        // Для гостей получаем товары из тела запроса
-        if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-          throw new Error("Cart items are required for guest checkout");
-        }
-
-        // Загружаем товары из БД
+      // Приоритет: body.items → БД корзина (для авторизованных)
+      // Это позволяет использовать localStorage корзину даже для авторизованных пользователей
+      if (body.items && Array.isArray(body.items) && body.items.length > 0) {
+        // Получаем товары из тела запроса (для всех пользователей)
         const productIds = body.items.map((item: any) => item.productId);
         const products = await tx.product.findMany({
           where: { id: { in: productIds } },
@@ -97,6 +76,27 @@ export async function POST(request: NextRequest) {
             modifiers: item.modifiers || [],
           };
         });
+      } else if (session) {
+        // Fallback: для авторизованных пользователей пытаемся взять из БД
+        const cart = await tx.cart.findUnique({
+          where: { userId: session.userId },
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
+
+        if (!cart || cart.items.length === 0) {
+          throw new Error("Cart is empty. Please add items to cart.");
+        }
+
+        cartItems = cart.items;
+      } else {
+        // Ни body.items, ни session - ошибка
+        throw new Error("Cart items are required for checkout");
       }
 
       // 2. Проверяем наличие всех товаров

@@ -299,7 +299,21 @@ export default function ProductsPage() {
         isOpen={modalOpen}
         onClose={handleCloseModal}
         onSave={handleSaveProduct}
-        product={editingProduct}
+        product={editingProduct ? {
+          id: editingProduct.id,
+          title: editingProduct.title,
+          categoryId: editingProduct.category.id,
+          price: editingProduct.price,
+          weightOrVolume: editingProduct.weightOrVolume || undefined,
+          composition: editingProduct.composition || undefined,
+          description: editingProduct.description || undefined,
+          photoFileId: editingProduct.photoFileId || undefined,
+          photoFile: editingProduct.photoFile || undefined,
+          isAvailable: editingProduct.isAvailable,
+          isRecommended: editingProduct.isRecommended,
+          calories: editingProduct.calories || undefined,
+          allergens: editingProduct.allergens || undefined,
+        } : null}
         categories={categories}
       />
 

@@ -44,8 +44,10 @@ const mockFile = {
 const result4 = serializeFileRecord(mockFile);
 console.log(`   File object:`, mockFile);
 console.log(`   Serialized:`, result4);
-console.log(`   ✓ sizeBytes type: ${typeof result4.sizeBytes}`);
-console.log(`   ✓ Получено: ${typeof result4.sizeBytes === 'number' ? 'PASS' : 'FAIL'}\n`);
+if (result4) {
+  console.log(`   ✓ sizeBytes type: ${typeof result4.sizeBytes}`);
+  console.log(`   ✓ Получено: ${typeof result4.sizeBytes === 'number' ? 'PASS' : 'FAIL'}\n`);
+}
 
 // Тест 5: JSON сериализация
 console.log("5️⃣ Тест JSON.stringify:");

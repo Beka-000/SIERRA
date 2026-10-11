@@ -93,7 +93,7 @@ export default function CheckoutPage() {
     setSubmitting(true);
 
     try {
-      // Для гостевых заказов отправляем items из корзины
+      // Подготавливаем данные заказа
       const orderData: any = {
         customerName: form.name,
         customerPhone: form.phone,
@@ -101,15 +101,19 @@ export default function CheckoutPage() {
         deliveryType: form.deliveryType,
         deliveryAddress: form.deliveryType === "delivery" ? form.address : undefined,
         comment: form.comment || undefined,
+        // Всегда отправляем items из localStorage корзины
+        items: items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          modifiers: item.modifiers || [],
+        })),
       };
 
-      // Добавляем items для гостевых заказов
-      // Для авторизованных пользователей items берутся из БД
-      orderData.items = items.map(item => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        modifiers: item.modifiers || [],
-      }));
+      console.log("[Checkout] Submitting order:", {
+        itemCount: items.length,
+        totalAmount,
+        items: orderData.items,
+      });
 
       const response = await fetch("/api/orders", {
         method: "POST",
