@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, handleApiError } from "@/lib/api-middleware";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit";
+import { serializeFileRecord } from "@/lib/bigint-utils";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, "products.view");
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
       products: products.map((p) => ({
         ...p,
         price: Number(p.price),
+        photoFile: p.photoFile ? serializeFileRecord(p.photoFile) : null,
       })),
     });
   } catch (error) {
@@ -61,6 +63,8 @@ export async function POST(request: NextRequest) {
       description,
       price,
       weightOrVolume,
+      composition,
+      calories,
       allergens,
       photoFileId,
       isAvailable = true,
@@ -82,6 +86,8 @@ export async function POST(request: NextRequest) {
         description,
         price,
         weightOrVolume,
+        composition,
+        calories,
         allergens,
         photoFileId,
         isAvailable,
@@ -90,6 +96,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         category: true,
+        photoFile: true,
       },
     });
 
@@ -102,7 +109,11 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { ...product, price: Number(product.price) },
+      { 
+        ...product, 
+        price: Number(product.price),
+        photoFile: product.photoFile ? serializeFileRecord(product.photoFile) : null,
+      },
       { status: 201 }
     );
   } catch (error) {

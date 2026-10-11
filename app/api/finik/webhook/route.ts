@@ -1,208 +1,197 @@
-// app/api/finik/webhook/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { 
-  verifyFinikWebhook, 
-  isTimestampValid, 
-  FinikWebhookData 
-} from '@/lib/finik';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { verifyFinikWebhook, isTimestampValid, type FinikWebhookData } from "@/lib/finik";
 
 /**
  * POST /api/finik/webhook
- * Обрабатывает webhook от Finik после завершения платежа
+ * Обработка webhook уведомлений от Finik Pay
+ * 
+ * Важно: этот endpoint должен быть доступен публично (без авторизации)
+ * для получения уведомлений от внешнего сервиса
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Получение заголовков
-    const signature = request.headers.get('signature');
-    const timestamp = request.headers.get('x-api-timestamp');
-    const host = request.headers.get('host');
+    // 1. Получаем данные из запроса
+    const body = await request.json();
+    const signature = request.headers.get("signature") || "";
+    const timestamp = request.headers.get("x-api-timestamp") || "";
 
-    console.log('[FINIK_WEBHOOK] Received webhook:', {
+    console.log("[Finik Webhook] Received:", {
+      timestamp,
       hasSignature: !!signature,
-      hasTimestamp: !!timestamp,
-      host,
+      bodyKeys: Object.keys(body),
     });
 
-    if (!signature || !timestamp) {
-      console.error('[FINIK_WEBHOOK] Missing signature or timestamp');
-      return NextResponse.json(
-        { error: 'Missing signature or timestamp' },
-        { status: 400 }
-      );
-    }
-
-    // 2. Проверка актуальности timestamp (защита от replay-атак)
+    // 2. Проверяем timestamp (защита от replay атак)
     if (!isTimestampValid(timestamp)) {
-      console.error('[FINIK_WEBHOOK] Timestamp is too old or invalid');
+      console.error("[Finik Webhook] Invalid timestamp:", timestamp);
       return NextResponse.json(
-        { error: 'Invalid timestamp' },
+        { error: "Invalid timestamp" },
         { status: 400 }
       );
     }
 
-    // 3. Получение тела запроса
-    const body: FinikWebhookData = await request.json();
-
-    console.log('[FINIK_WEBHOOK] Webhook data:', {
-      id: body.id,
-      transactionId: body.transactionId,
-      status: body.status,
-      amount: body.amount,
+    // 3. Верифицируем подпись
+    const headers: Record<string, string> = {};
+    request.headers.forEach((value, key) => {
+      headers[key] = value;
     });
 
-    // 4. Подготовка заголовков для верификации
-    const headers: Record<string, string> = {
-      'host': host || '',
-    };
-
-    // 5. Верификация подписи
-    const webhookPath = '/api/finik/webhook';
     const isValid = await verifyFinikWebhook(
-      signature, 
-      timestamp, 
-      body as any, 
-      headers, 
-      webhookPath
+      signature,
+      timestamp,
+      body,
+      headers,
+      "/api/finik/webhook"
     );
-    
+
     if (!isValid) {
-      console.error('[FINIK_WEBHOOK] Invalid signature');
-      
-      // В продакшене всегда отклоняем невалидные подписи
-      if (process.env.NODE_ENV === 'production') {
-        return NextResponse.json(
-          { error: 'Invalid signature' },
-          { status: 401 }
-        );
-      }
-      
-      console.warn('[FINIK_WEBHOOK] Continuing despite invalid signature (development mode)');
+      console.error("[Finik Webhook] Invalid signature");
+      return NextResponse.json(
+        { error: "Invalid signature" },
+        { status: 403 }
+      );
     }
 
-    // 6. Извлечение метаданных
-    let metadata: { 
-      userId?: string; 
-      orderId?: string; 
-      paymentId?: string 
-    } = {};
+    // 4. Парсим данные webhook
+    const webhookData: FinikWebhookData = body;
+
+    // Извлекаем metadata с информацией о заказе
+    let metadata: { orderId?: string; userId?: string; paymentId?: string } = {};
     
-    try {
-      if (body.data && body.data.metadata) {
-        if (typeof body.data.metadata === 'string') {
-          metadata = JSON.parse(body.data.metadata);
-        } else {
-          metadata = body.data.metadata as typeof metadata;
-        }
+    if (webhookData.data?.metadata) {
+      try {
+        metadata = typeof webhookData.data.metadata === "string"
+          ? JSON.parse(webhookData.data.metadata)
+          : webhookData.data.metadata;
+      } catch (e) {
+        console.error("[Finik Webhook] Failed to parse metadata:", e);
       }
-    } catch (error) {
-      console.error('[FINIK_WEBHOOK] Error parsing metadata:', error);
     }
 
-    console.log('[FINIK_WEBHOOK] Metadata:', metadata);
+    const orderId = metadata.orderId;
+    if (!orderId) {
+      console.error("[Finik Webhook] Order ID not found in metadata");
+      return NextResponse.json(
+        { error: "Order ID not found" },
+        { status: 400 }
+      );
+    }
 
-    // 7. Обработка успешного платежа
-    if (body.status === 'SUCCEEDED' || body.status === 'succeeded') {
-      const { userId, orderId } = metadata;
+    console.log("[Finik Webhook] Processing payment for order:", orderId);
 
-      if (!userId || !orderId) {
-        console.error('[FINIK_WEBHOOK] Missing userId or orderId in metadata');
-        return NextResponse.json(
-          { error: 'Missing metadata' },
-          { status: 400 }
-        );
-      }
+    // 5. Определяем статус платежа
+    const paymentStatus = webhookData.status.toLowerCase();
+    const isSuccessful = paymentStatus === "succeeded" || paymentStatus === "success";
+    const isFailed = paymentStatus === "failed" || paymentStatus === "error";
 
-      console.log(`[FINIK_WEBHOOK] ✓ Payment succeeded:`, {
-        orderId,
-        userId,
-        amount: body.amount,
-        transactionId: body.transactionId,
+    // 6. Обновляем данные в БД через транзакцию
+    await prisma.$transaction(async (tx) => {
+      // Проверяем существование заказа
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: {
+          payments: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
       });
 
-      // 8. Обновление заказа в БД
-      try {
-        // Находим заказ
-        const order = await prisma.order.findUnique({
-          where: { id: orderId },
-        });
+      if (!order) {
+        throw new Error(`Order ${orderId} not found`);
+      }
 
-        if (!order) {
-          console.error('[FINIK_WEBHOOK] Order not found:', orderId);
-          return NextResponse.json(
-            { error: 'Order not found' },
-            { status: 404 }
-          );
-        }
+      const payment = order.payments[0];
+      if (!payment) {
+        throw new Error(`Payment record not found for order ${orderId}`);
+      }
 
-        // Обновляем статус заказа
-        await prisma.order.update({
+      // Проверяем, не обработан ли уже этот webhook (идемпотентность)
+      if (payment.status === "success" && isSuccessful) {
+        console.log("[Finik Webhook] Payment already processed, skipping");
+        return;
+      }
+
+      // Обновляем статус платежа
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: isSuccessful ? "success" : isFailed ? "failed" : "pending",
+          providerPaymentId: webhookData.id || payment.providerPaymentId,
+          webhookPayload: webhookData as any,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Обновляем статус заказа
+      if (isSuccessful) {
+        // Успешная оплата - подтверждаем заказ
+        await tx.order.update({
           where: { id: orderId },
           data: {
-            status: 'CONFIRMED', // Меняем статус на подтвержденный
+            status: "CONFIRMED",
+            updatedAt: new Date(),
           },
         });
 
-        // Создаем запись о платеже
-        await prisma.payment.create({
+        console.log("[Finik Webhook] Order confirmed:", orderId);
+
+        // TODO: Здесь можно добавить отправку уведомлений
+        // - Email/SMS клиенту
+        // - Уведомление на кухню
+        // - Telegram уведомление админам
+      } else if (isFailed) {
+        // Неудачная оплата - отменяем заказ
+        await tx.order.update({
+          where: { id: orderId },
           data: {
-            orderId: orderId,
-            provider: 'finik',
-            providerPaymentId: body.transactionId,
-            status: 'success',
-            amount: body.amount,
-            idempotencyKey: body.id,
-            webhookPayload: body as any,
+            status: "CANCELLED",
+            updatedAt: new Date(),
           },
         });
 
-        console.log(`[FINIK_WEBHOOK] ✓ Order ${orderId} updated successfully`);
-
-      } catch (dbError) {
-        console.error('[FINIK_WEBHOOK] Database error:', dbError);
-        return NextResponse.json(
-          { error: 'Database error' },
-          { status: 500 }
-        );
+        console.log("[Finik Webhook] Order cancelled due to payment failure:", orderId);
       }
-    } 
-    // 9. Обработка неудачного платежа
-    else if (body.status === 'FAILED' || body.status === 'failed') {
-      const { userId, orderId } = metadata;
-      console.error('[FINIK_WEBHOOK] ✗ Payment failed:', { userId, orderId, transactionId: body.transactionId });
-      
-      // Можно обновить статус заказа на "failed" если нужно
-      if (orderId) {
-        try {
-          await prisma.payment.create({
-            data: {
-              orderId: orderId,
-              provider: 'finik',
-              providerPaymentId: body.transactionId || '',
-              status: 'failed',
-              amount: body.amount,
-              idempotencyKey: body.id,
-              webhookPayload: body as any,
-            },
-          });
-        } catch (error) {
-          console.error('[FINIK_WEBHOOK] Error saving failed payment:', error);
-        }
-      }
-    }
+    });
 
-    // 10. Возврат успешного ответа
-    return NextResponse.json({ success: true });
+    // 7. Логируем успешную обработку
+    console.log("[Finik Webhook] Successfully processed:", {
+      orderId,
+      status: paymentStatus,
+      transactionId: webhookData.transactionId,
+    });
 
+    // 8. Возвращаем успешный ответ
+    return NextResponse.json({
+      success: true,
+      orderId,
+      status: paymentStatus,
+    });
   } catch (error) {
-    console.error('[FINIK_WEBHOOK] Error processing webhook:', error);
+    console.error("[Finik Webhook Error]", error);
     
+    // Важно: возвращаем 200 даже при ошибках обработки,
+    // чтобы Finik не повторял запрос бесконечно
+    // Но логируем ошибку для расследования
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      {
+        error: "Internal error",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
+}
+
+/**
+ * GET /api/finik/webhook
+ * Endpoint для проверки доступности webhook
+ */
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    service: "finik-webhook",
+    timestamp: new Date().toISOString(),
+  });
 }

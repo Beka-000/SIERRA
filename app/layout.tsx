@@ -29,6 +29,8 @@ export const metadata: Metadata = {
 
 import { LocaleProvider } from "@/lib/LocaleContext";
 import { AuthProvider } from "@/lib/AuthContext";
+import { CartProvider } from "@/lib/CartContext";
+import { ToastProvider } from "@/lib/ToastContext";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -37,11 +39,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${playfair.variable} ${inter.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-[#0f0d0b] text-[#f5f0e8]">
-        <LocaleProvider>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-        </LocaleProvider>
+        <ToastProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              <CartProvider>
+                {children}
+              </CartProvider>
+            </AuthProvider>
+          </LocaleProvider>
+        </ToastProvider>
       </body>
     </html>
   );

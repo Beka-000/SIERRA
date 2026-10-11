@@ -33,10 +33,12 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      userId: session.userId,
-      name: session.name,
-      email: session.email,
-      role: session.role,
+      user: {
+        userId: session.userId,
+        name: session.name,
+        email: session.email,
+        role: session.role,
+      },
     });
   } catch (error) {
     console.error("[Session Check Error]", error);

@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        setSession(data);
+        setSession(data.user);
       } catch {
         router.push("/admin/login");
       } finally {

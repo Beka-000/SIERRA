@@ -1,34 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, handleApiError } from "@/lib/api-middleware";
+import { getCurrentSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { OrderStatus, FulfillmentType, PaymentMethod } from "@prisma/client";
+import { serializeBigInt } from "@/lib/bigint-utils";
 
+/**
+ * GET /api/admin/orders
+ * Получение списка всех заказов (только для администраторов)
+ */
 export async function GET(request: NextRequest) {
-  const auth = await requireAuth(request, "orders.view");
-  if (auth instanceof NextResponse) return auth;
-
   try {
+    const session = await getCurrentSession();
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Проверяем права администратора
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      include: { role: true },
+    });
+
+    const isAdmin = user?.role?.code === "admin" || user?.role?.code === "manager" || user?.role?.code === "kitchen";
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: "Access denied" },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
-
-    // Pagination
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
-    const skip = (page - 1) * limit;
-
-    // Filters
-    const status = searchParams.get("status") as OrderStatus | null;
-    const fulfillmentType = searchParams.get("fulfillmentType") as FulfillmentType | null;
-    const paymentMethod = searchParams.get("paymentMethod") as PaymentMethod | null;
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
     const search = searchParams.get("search") || "";
-    const dateFrom = searchParams.get("dateFrom");
-    const dateTo = searchParams.get("dateTo");
+    const status = searchParams.get("status") || "";
+    const fulfillmentType = searchParams.get("fulfillmentType") || "";
+    const paymentMethod = searchParams.get("paymentMethod") || "";
 
-    // Build where clause
+    // Формируем условия фильтрации
     const where: any = {};
-
-    if (status) where.status = status;
-    if (fulfillmentType) where.fulfillmentType = fulfillmentType;
-    if (paymentMethod) where.paymentMethod = paymentMethod;
 
     if (search) {
       where.OR = [
@@ -38,61 +51,90 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    if (dateFrom || dateTo) {
-      where.createdAt = {};
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
-      if (dateTo) where.createdAt.lte = new Date(dateTo);
+    if (status) {
+      where.status = status;
     }
 
-    // Get orders with pagination
+    if (fulfillmentType) {
+      where.fulfillmentType = fulfillmentType;
+    }
+
+    if (paymentMethod) {
+      where.paymentMethod = paymentMethod;
+    }
+
+    // Получаем заказы с пагинацией
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
         include: {
           items: {
             include: {
               product: {
-                select: { id: true, title: true, price: true },
+                select: {
+                  id: true,
+                  title: true,
+                  photoFile: {
+                    select: {
+                      url: true,
+                    },
+                  },
+                },
               },
             },
           },
+          payments: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
           user: {
-            select: { id: true, name: true, email: true, phone: true },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
       }),
       prisma.order.count({ where }),
     ]);
 
-    return NextResponse.json({
-      orders: orders.map((order) => ({
-        ...order,
-        subtotal: Number(order.subtotal),
-        discountAmount: Number(order.discountAmount),
-        totalAmount: Number(order.totalAmount),
-        items: order.items.map((item) => ({
-          ...item,
-          unitPrice: Number(item.unitPrice),
-          lineTotal: Number(item.lineTotal),
-          product: item.product
-            ? {
-                ...item.product,
-                price: Number(item.product.price),
-              }
-            : null,
-        })),
+    // Сериализуем BigInt поля
+    const serializedOrders = orders.map((order) => ({
+      ...order,
+      subtotal: serializeBigInt(order.subtotal),
+      discountAmount: serializeBigInt(order.discountAmount),
+      totalAmount: serializeBigInt(order.totalAmount),
+      items: order.items.map((item) => ({
+        ...item,
+        unitPrice: serializeBigInt(item.unitPrice),
+        lineTotal: serializeBigInt(item.lineTotal),
       })),
+      payments: order.payments.map((payment) => ({
+        ...payment,
+        amount: serializeBigInt(payment.amount),
+      })),
+    }));
+
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      orders: serializedOrders,
       pagination: {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages,
       },
     });
   } catch (error) {
-    return handleApiError(error);
+    console.error("[Admin Orders GET Error]", error);
+    return NextResponse.json(
+      { error: "Failed to load orders" },
+      { status: 500 }
+    );
   }
 }

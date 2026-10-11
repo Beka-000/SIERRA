@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
+import { useCart } from "@/lib/CartContext";
 
 interface Category {
   id: string;
@@ -35,6 +36,7 @@ export default function MenuPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("default");
   const [loading, setLoading] = useState(true);
+  const { items, addItem, updateQuantity, getItemQuantity } = useCart();
 
   // Загрузка категорий
   useEffect(() => {
@@ -277,7 +279,7 @@ export default function MenuPage() {
                     )}
                   </div>
 
-                  {/* Цена */}
+                  {/* Цена и кнопки корзины */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span
@@ -292,18 +294,72 @@ export default function MenuPage() {
                         </span>
                       )}
                     </div>
-                    <button
-                      className="w-10 h-10 rounded-full bg-[#c9a96e]/10 border border-[#c9a96e]/20 text-[#c9a96e] flex items-center justify-center hover:bg-[#c9a96e] hover:text-[#0f0d0b] transition"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        // TODO: Добавить в корзину
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </button>
+
+                    {/* Управление корзиной */}
+                    {(() => {
+                      const quantity = getItemQuantity(product.id);
+                      
+                      if (quantity === 0) {
+                        return (
+                          <button
+                            className="w-10 h-10 rounded-full bg-[#c9a96e]/10 border border-[#c9a96e]/20 text-[#c9a96e] flex items-center justify-center hover:bg-[#c9a96e] hover:text-[#0f0d0b] transition"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              addItem({
+                                productId: product.id,
+                                title: product.title,
+                                price: product.price,
+                                quantity: 1,
+                                imageUrl: product.imageUrl,
+                                weightOrVolume: product.weightOrVolume,
+                              });
+                            }}
+                            aria-label="Добавить в корзину"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <div
+                          className="flex items-center gap-2 bg-[#c9a96e]/10 border border-[#c9a96e]/20 rounded-full px-2 py-1"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <button
+                            className="w-7 h-7 rounded-full bg-[#c9a96e]/20 hover:bg-[#c9a96e]/30 text-[#c9a96e] flex items-center justify-center transition"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              updateQuantity(product.id, quantity - 1);
+                            }}
+                            aria-label="Уменьшить количество"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </button>
+                          <span className="text-sm font-semibold text-[#c9a96e] w-5 text-center">
+                            {quantity}
+                          </span>
+                          <button
+                            className="w-7 h-7 rounded-full bg-[#c9a96e]/20 hover:bg-[#c9a96e]/30 text-[#c9a96e] flex items-center justify-center transition"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              updateQuantity(product.id, quantity + 1);
+                            }}
+                            aria-label="Увеличить количество"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </Link>
               ))}

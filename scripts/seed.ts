@@ -57,7 +57,7 @@ async function main() {
       [
         adminRoleId,
         "Администратор",
-        "+70000000000",
+        "+996000000000",
         "admin@sierracoffee.kz",
         passwordHash,
       ]

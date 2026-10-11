@@ -186,7 +186,7 @@ const translations = {
       title: "Регистрация",
       subtitle: "Создайте аккаунт",
       nameLabel: "Имя",
-      namePlaceholder: "Айдана Касымова",
+      namePlaceholder: "Бекназар Кожомкулов",
       phoneLabel: "Телефон",
       phonePlaceholder: "+996 555 000 000",
       emailLabel: "Email",

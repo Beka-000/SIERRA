@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, handleApiError } from "@/lib/api-middleware";
 import { prisma } from "@/lib/prisma";
 import { createAuditLog } from "@/lib/audit";
+import { serializeFileRecord } from "@/lib/bigint-utils";
 
 export async function GET(
   request: NextRequest,
@@ -29,6 +30,7 @@ export async function GET(
     return NextResponse.json({
       ...product,
       price: Number(product.price),
+      photoFile: product.photoFile ? serializeFileRecord(product.photoFile) : null,
       modifiers: product.modifiers.map((m) => ({
         ...m,
         priceDelta: Number(m.priceDelta),
@@ -64,12 +66,18 @@ export async function PATCH(
         ...(body.description !== undefined && { description: body.description }),
         ...(body.price !== undefined && { price: body.price }),
         ...(body.weightOrVolume !== undefined && { weightOrVolume: body.weightOrVolume }),
+        ...(body.composition !== undefined && { composition: body.composition }),
+        ...(body.calories !== undefined && { calories: body.calories }),
         ...(body.allergens !== undefined && { allergens: body.allergens }),
         ...(body.photoFileId !== undefined && { photoFileId: body.photoFileId }),
         ...(body.isAvailable !== undefined && { isAvailable: body.isAvailable }),
         ...(body.isRecommended !== undefined && { isRecommended: body.isRecommended }),
         ...(body.isHidden !== undefined && { isHidden: body.isHidden }),
         updatedAt: new Date(),
+      },
+      include: {
+        category: true,
+        photoFile: true,
       },
     });
 
@@ -81,7 +89,11 @@ export async function PATCH(
       details: { changes: body },
     });
 
-    return NextResponse.json({ ...updated, price: Number(updated.price) });
+    return NextResponse.json({ 
+      ...updated, 
+      price: Number(updated.price),
+      photoFile: updated.photoFile ? serializeFileRecord(updated.photoFile) : null,
+    });
   } catch (error) {
     return handleApiError(error);
   }

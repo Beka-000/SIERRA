@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLocale } from "@/lib/LocaleContext";
 import { useAuth } from "@/lib/AuthContext";
+import { useCart } from "@/lib/CartContext";
 import { t, LOCALES } from "@/lib/i18n";
 
 export default function Navbar() {
   const { locale, setLocale } = useLocale();
   const { user, logout } = useAuth();
+  const { itemCount } = useCart();
   const i18n = t(locale);
   
   const [scrolled, setScrolled]     = useState(false);
@@ -88,6 +90,33 @@ export default function Navbar() {
 
         {/* Desktop CTA + Язык */}
         <div className="hidden md:flex items-center gap-3">
+          {/* Корзина */}
+          <Link
+            href="/cart"
+            className="relative flex items-center justify-center w-10 h-10 rounded-lg hover:bg-white/[0.06] transition group"
+            aria-label="Корзина"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-[rgba(245,240,232,0.6)] group-hover:text-[#c9a96e] transition"
+            >
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+            {/* Бейдж с количеством товаров */}
+            {itemCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#c9a96e] text-[#0f0d0b] text-xs font-semibold rounded-full flex items-center justify-center">
+                {itemCount}
+              </span>
+            )}
+          </Link>
+
           {/* Переключатель языка */}
           <div className="relative">
             <button
@@ -225,6 +254,27 @@ export default function Navbar() {
         }`}
       >
         <nav className="bg-[#0f0d0b]/95 backdrop-blur-md border-t border-white/[0.06] px-6 py-4 flex flex-col gap-1">
+          {/* Корзина в мобильном меню */}
+          <Link
+            href="/cart"
+            onClick={() => setMenuOpen(false)}
+            className="py-3 text-sm text-[rgba(245,240,232,0.65)] hover:text-[#f5f0e8] border-b border-white/[0.04] transition-colors flex items-center justify-between"
+          >
+            <span className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
+              Корзина
+            </span>
+            {itemCount > 0 && (
+              <span className="w-6 h-6 bg-[#c9a96e]/20 text-[#c9a96e] text-xs font-semibold rounded-full flex items-center justify-center">
+                {itemCount}
+              </span>
+            )}
+          </Link>
+
           {links.map((l) => (
             <a
               key={l.href}

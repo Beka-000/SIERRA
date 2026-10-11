@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
+import { useCart } from "@/lib/CartContext";
 
 interface Modifier {
   id: string;
@@ -58,6 +59,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedModifiers, setSelectedModifiers] = useState<string[]>([]);
+  const { addItem } = useCart();
 
   useEffect(() => {
     async function loadProduct() {
@@ -98,8 +100,36 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = () => {
-    // TODO: Добавить в корзину
-    alert("Товар добавлен в корзину!");
+    if (!product) return;
+
+    // Вычисляем итоговую цену с модификаторами
+    const modifiersPrice = product.modifiers
+      .filter((m) => selectedModifiers.includes(m.id))
+      .reduce((sum, m) => sum + m.priceDelta, 0);
+
+    const finalPrice = product.price + modifiersPrice;
+
+    // Формируем список выбранных модификаторов для отображения
+    const modifiersList = product.modifiers
+      .filter((m) => selectedModifiers.includes(m.id))
+      .map((m) => m.title);
+
+    // Добавляем товар в корзину
+    addItem({
+      productId: product.id,
+      title: product.title,
+      price: finalPrice,
+      quantity: quantity,
+      imageUrl: product.imageUrl,
+      weightOrVolume: product.weightOrVolume,
+      modifiers: modifiersList.length > 0 ? modifiersList : undefined,
+    });
+
+    // Показываем уведомление
+    alert(`${product.title} добавлен в корзину!`);
+
+    // Опционально: перенаправляем в корзину
+    // router.push("/cart");
   };
 
   if (loading) {

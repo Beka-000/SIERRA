@@ -1,169 +1,317 @@
-import { type NextRequest } from "next/server";
-import { db } from "@/db";
-import { orders, orderItems, products } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import {
-  notifyAdminNewOrder,
-  notifyClientOrderReceived,
-  type OrderNotificationData,
-} from "@/lib/telegram";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { createFinikPayment } from "@/lib/finik";
+import { serializeBigInt } from "@/lib/bigint-utils";
 
-// ─── Типы входящего запроса ──────────────────────────────────────────────────
-
-interface OrderItemInput {
-  productId: number;
-  quantity: number;
-}
-
-interface CreateOrderBody {
-  customerName: string;
-  customerPhone: string;
-  /** Telegram chat_id клиента — если передан, клиент получит подтверждение */
-  telegramChatId?: string | number;
-  fulfillmentType?: "dine_in" | "pickup" | "delivery";
-  deliveryAddress?: string;
-  comment?: string;
-  items: OrderItemInput[];
-}
-
-// ─── POST /api/orders ────────────────────────────────────────────────────────
-
+/**
+ * POST /api/orders
+ * Создание нового заказа с интеграцией Finik Pay
+ */
 export async function POST(request: NextRequest) {
-  let body: CreateOrderBody;
-
   try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Некорректный JSON" }, { status: 400 });
-  }
+    const session = await getCurrentSession();
+    
+    // Для гостей разрешаем создавать заказы
+    // if (!session) {
+    //   return NextResponse.json(
+    //     { error: "Unauthorized" },
+    //     { status: 401 }
+    //   );
+    // }
 
-  // Валидация обязательных полей
-  const { customerName, customerPhone, items, fulfillmentType = "pickup" } = body;
+    const body = await request.json();
+    const {
+      customerName,
+      customerPhone,
+      customerEmail,
+      deliveryType, // "delivery" | "pickup"
+      deliveryAddress,
+      comment,
+    } = body;
 
-  if (!customerName?.trim()) {
-    return Response.json({ error: "Поле customerName обязательно" }, { status: 400 });
-  }
-  if (!customerPhone?.trim()) {
-    return Response.json({ error: "Поле customerPhone обязательно" }, { status: 400 });
-  }
-  if (!Array.isArray(items) || items.length === 0) {
-    return Response.json({ error: "Заказ должен содержать хотя бы один товар" }, { status: 400 });
-  }
-
-  // Загружаем продукты из БД для расчёта суммы
-  const productIds = items.map((i) => i.productId);
-  const dbProducts = await db
-    .select()
-    .from(products)
-    .where(eq(products.id, productIds[0])); // fallback для одного id
-
-  // Для нескольких продуктов используем inArray если доступен, иначе фетчим поочерёдно
-  const productMap = new Map<number, { name: string; price: string }>();
-
-  for (const item of items) {
-    const [product] = await db
-      .select({ id: products.id, name: products.name, price: products.price })
-      .from(products)
-      .where(eq(products.id, item.productId))
-      .limit(1);
-
-    if (!product) {
-      return Response.json(
-        { error: `Продукт с id ${item.productId} не найден` },
-        { status: 404 }
+    // Валидация обязательных полей
+    if (!customerName || !customerPhone) {
+      return NextResponse.json(
+        { error: "Customer name and phone are required" },
+        { status: 400 }
       );
     }
-    productMap.set(item.productId, { name: product.name, price: product.price });
-  }
 
-  // Рассчитываем итоговую сумму
-  const totalAmount = items.reduce((sum, item) => {
-    const product = productMap.get(item.productId)!;
-    return sum + parseFloat(product.price) * item.quantity;
-  }, 0);
+    if (deliveryType === "delivery" && !deliveryAddress) {
+      return NextResponse.json(
+        { error: "Delivery address is required for delivery orders" },
+        { status: 400 }
+      );
+    }
 
-  // Генерируем номер заказа
-  const orderNumber = `SC-${Date.now()}`;
+    // Генерируем уникальный idempotency key для предотвращения дублирования заказов
+    const idempotencyKey = crypto.randomUUID();
 
-  // Создаём заказ в БД
-  const [newOrder] = await db
-    .insert(orders)
-    .values({
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      totalAmount: totalAmount.toFixed(2),
-      status: "pending",
-    })
-    .returning();
+    // Используем транзакцию для атомарного создания заказа
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Загружаем корзину пользователя
+      let cartItems;
+      
+      if (session) {
+        // Для авторизованных пользователей берем корзину из БД
+        const cart = await tx.cart.findUnique({
+          where: { userId: session.userId },
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
 
-  // Создаём позиции заказа
-  const itemsToInsert = items.map((item) => ({
-    orderId: newOrder.id,
-    productId: item.productId,
-    quantity: item.quantity,
-    price: (parseFloat(productMap.get(item.productId)!.price) * item.quantity).toFixed(2),
-  }));
+        if (!cart || cart.items.length === 0) {
+          throw new Error("Cart is empty");
+        }
 
-  await db.insert(orderItems).values(itemsToInsert);
+        cartItems = cart.items;
+      } else {
+        // Для гостей получаем товары из тела запроса
+        if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
+          throw new Error("Cart items are required for guest checkout");
+        }
 
-  // ─── Telegram-уведомления ────────────────────────────────────────────────
+        // Загружаем товары из БД
+        const productIds = body.items.map((item: any) => item.productId);
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds } },
+        });
 
-  const notificationData: OrderNotificationData = {
-    orderNumber,
-    customerName: customerName.trim(),
-    customerPhone: customerPhone.trim(),
-    fulfillmentType,
-    deliveryAddress: body.deliveryAddress,
-    comment: body.comment,
-    totalAmount: totalAmount.toFixed(2),
-    items: items.map((item) => ({
-      title: productMap.get(item.productId)!.name,
-      quantity: item.quantity,
-      unitPrice: productMap.get(item.productId)!.price,
-    })),
-  };
+        if (products.length !== body.items.length) {
+          throw new Error("Some products not found");
+        }
 
-  // Уведомление администратору (не блокируем ответ при ошибке)
-  notifyAdminNewOrder(notificationData).catch((err) =>
-    console.error("[Telegram] Ошибка уведомления администратора:", err)
-  );
+        cartItems = body.items.map((item: any) => {
+          const product = products.find((p) => p.id === item.productId);
+          if (!product) throw new Error("Product not found");
+          return {
+            productId: item.productId,
+            quantity: item.quantity,
+            product,
+            modifiers: item.modifiers || [],
+          };
+        });
+      }
 
-  // Подтверждение клиенту (если передан telegramChatId)
-  if (body.telegramChatId) {
-    notifyClientOrderReceived({
-      telegramChatId: body.telegramChatId,
-      orderNumber,
-      customerName: customerName.trim(),
-      totalAmount: totalAmount.toFixed(2),
-      fulfillmentType,
-      estimatedMinutes: fulfillmentType === "delivery" ? 45 : 20,
-    }).catch((err) =>
-      console.error("[Telegram] Ошибка уведомления клиента:", err)
+      // 2. Проверяем наличие всех товаров
+      for (const item of cartItems) {
+        if (!item.product.isAvailable) {
+          throw new Error(`Product ${item.product.title} is not available`);
+        }
+      }
+
+      // 3. Вычисляем итоговую сумму
+      let subtotal = 0;
+      const orderItems = cartItems.map((item: any) => {
+        const unitPrice = Number(item.product.price);
+        const lineTotal = unitPrice * item.quantity;
+        subtotal += lineTotal;
+
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice,
+          lineTotal,
+          modifiers: item.modifiers || [],
+        };
+      });
+
+      const totalAmount = subtotal;
+
+      // 4. Генерируем уникальный номер заказа
+      const orderNumber = `SC${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+      // 5. Создаем заказ
+      const order = await tx.order.create({
+        data: {
+          orderNumber,
+          userId: session?.userId || null,
+          customerName,
+          customerPhone,
+          customerEmail: customerEmail || null,
+          fulfillmentType: deliveryType === "pickup" ? "pickup" : "delivery",
+          deliveryAddress: deliveryType === "delivery" ? deliveryAddress : null,
+          comment: comment || null,
+          paymentMethod: "online",
+          subtotal,
+          discountAmount: 0,
+          totalAmount,
+          status: "NEW",
+          items: {
+            create: orderItems,
+          },
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      // 6. Создаем запись о платеже
+      const payment = await tx.payment.create({
+        data: {
+          orderId: order.id,
+          provider: "finik",
+          status: "created",
+          amount: totalAmount,
+          idempotencyKey,
+        },
+      });
+
+      // 7. Очищаем корзину пользователя (только для авторизованных)
+      if (session) {
+        await tx.cartItem.deleteMany({
+          where: {
+            cart: {
+              userId: session.userId,
+            },
+          },
+        });
+      }
+
+      return { order, payment };
+    });
+
+    // 8. Создаем платеж в Finik Pay
+    try {
+      const paymentUrl = await createFinikPayment({
+        amount: Number(result.order.totalAmount),
+        orderId: result.order.id,
+        orderDescription: `Заказ #${result.order.orderNumber} в Sierra Coffee`,
+        userId: session?.userId || "guest",
+      });
+
+      // Обновляем статус платежа
+      await prisma.payment.update({
+        where: { id: result.payment.id },
+        data: {
+          status: "pending",
+          providerPaymentId: paymentUrl.split("payment/")[1]?.split("?")[0] || null,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        orderId: result.order.id,
+        orderNumber: result.order.orderNumber,
+        paymentUrl,
+      });
+    } catch (finikError) {
+      console.error("Finik payment creation failed:", finikError);
+
+      // Обновляем статус платежа на failed
+      await prisma.payment.update({
+        where: { id: result.payment.id },
+        data: {
+          status: "failed",
+        },
+      });
+
+      // Возвращаем информацию о заказе, но без URL оплаты
+      return NextResponse.json({
+        success: true,
+        orderId: result.order.id,
+        orderNumber: result.order.orderNumber,
+        paymentUrl: null,
+        warning: "Payment creation failed. Please contact support.",
+      });
+    }
+  } catch (error) {
+    console.error("[Orders POST Error]", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to create order" },
+      { status: 500 }
     );
   }
-
-  return Response.json(
-    {
-      success: true,
-      order: {
-        id: newOrder.id,
-        orderNumber,
-        totalAmount: totalAmount.toFixed(2),
-        status: newOrder.status,
-        createdAt: newOrder.createdAt,
-      },
-    },
-    { status: 201 }
-  );
 }
 
-// ─── GET /api/orders ─────────────────────────────────────────────────────────
+/**
+ * GET /api/orders
+ * Получение списка заказов текущего пользователя
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getCurrentSession();
+    
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
-export async function GET() {
-  const allOrders = await db
-    .select()
-    .from(orders)
-    .orderBy(orders.createdAt);
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
+    const offset = parseInt(searchParams.get("offset") || "0", 10);
 
-  return Response.json({ orders: allOrders });
+    const orders = await prisma.order.findMany({
+      where: { userId: session.userId },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                photoFile: true,
+              },
+            },
+          },
+        },
+        payments: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    });
+
+    const total = await prisma.order.count({
+      where: { userId: session.userId },
+    });
+
+    // Сериализуем BigInt поля
+    const serializedOrders = orders.map((order) => ({
+      ...order,
+      subtotal: serializeBigInt(order.subtotal),
+      discountAmount: serializeBigInt(order.discountAmount),
+      totalAmount: serializeBigInt(order.totalAmount),
+      items: order.items.map((item) => ({
+        ...item,
+        unitPrice: serializeBigInt(item.unitPrice),
+        lineTotal: serializeBigInt(item.lineTotal),
+        product: {
+          ...item.product,
+          price: serializeBigInt(item.product.price),
+          oldPrice: item.product.oldPrice ? serializeBigInt(item.product.oldPrice) : null,
+        },
+      })),
+      payments: order.payments.map((payment) => ({
+        ...payment,
+        amount: serializeBigInt(payment.amount),
+      })),
+    }));
+
+    return NextResponse.json({
+      orders: serializedOrders,
+      total,
+      limit,
+      offset,
+    });
+  } catch (error) {
+    console.error("[Orders GET Error]", error);
+    return NextResponse.json(
+      { error: "Failed to load orders" },
+      { status: 500 }
+    );
+  }
 }
