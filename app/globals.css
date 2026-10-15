@@ -2,17 +2,17 @@
 
 /* ─── Бренд-токены ─────────────────────────────────────────────────────────── */
 :root {
-  /* Цвета */
-  --gold:        #c9a96e;
-  --gold-light:  #d4b87a;
-  --gold-dim:    #c9a96e80;
-  --bg:          #0f0d0b;
-  --bg-card:     #161411;
-  --bg-surface:  #1c1916;
+  /* Цвета — новая палитра Sierra Coffee */
+  --gold:        #D9B66F;
+  --gold-light:  #e8c87a;
+  --gold-dim:    #D9B66F80;
+  --bg:          #17130F;
+  --bg-card:     #211A15;
+  --bg-surface:  #292119;
   --border:      rgba(255,255,255,0.07);
-  --text:        #f5f0e8;
-  --text-muted:  rgba(245,240,232,0.45);
-  --text-subtle: rgba(245,240,232,0.25);
+  --text:        #F7F1E8;
+  --text-muted:  rgba(247,241,232,0.50);
+  --text-subtle: rgba(247,241,232,0.28);
 
   /* Шрифты */
   --font-display: var(--font-playfair), Georgia, serif;

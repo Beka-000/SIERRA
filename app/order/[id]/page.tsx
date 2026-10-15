@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
+import BackButton from "@/app/components/ui/BackButton";
 
 interface OrderItem {
   id: string;
@@ -190,6 +191,7 @@ export default function OrderPage() {
         <div className="max-w-7xl mx-auto px-6">
           {/* Заголовок */}
           <div className="mb-8">
+            <BackButton fallback="/" label="На главную" className="mb-3" />
             <h1
               className="text-4xl md:text-5xl font-semibold text-[#f5f0e8] mb-2"
               style={{ fontFamily: "var(--font-display)" }}

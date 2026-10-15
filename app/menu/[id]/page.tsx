@@ -6,6 +6,7 @@ import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import { useCart } from "@/lib/CartContext";
+import BackButton from "@/app/components/ui/BackButton";
 
 interface Modifier {
   id: string;
@@ -166,6 +167,10 @@ export default function ProductDetailPage() {
       <Navbar />
       <main className="min-h-screen bg-[#0f0d0b] pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-6">
+          {/* Навигация назад */}
+          <div className="mb-4 pt-2">
+            <BackButton fallback="/menu" label="В меню" />
+          </div>
           {/* Хлебные крошки */}
           <nav className="flex items-center gap-2 text-sm mb-12 text-[rgba(245,240,232,0.5)]">
             <Link href="/" className="hover:text-[#c9a96e] transition">

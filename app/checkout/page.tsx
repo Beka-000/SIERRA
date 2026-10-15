@@ -6,6 +6,9 @@ import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import { useCart } from "@/lib/CartContext";
+import { usePhoneInput } from "@/lib/usePhoneInput";
+import { useLocale } from "@/lib/LocaleContext";
+import { t } from "@/lib/i18n";
 
 interface CheckoutForm {
   name: string;
@@ -19,17 +22,36 @@ interface CheckoutForm {
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, itemCount, totalAmount, loading: cartLoading } = useCart();
+  const { locale } = useLocale();
+  const i18n = t(locale);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<CheckoutForm>>({});
+  const phone = usePhoneInput();
+  const [appliedPromocode, setAppliedPromocode] = useState<{
+    code: string;
+    discountAmount: number;
+  } | null>(null);
   
   const [form, setForm] = useState<CheckoutForm>({
     name: "",
-    phone: "+996",
+    phone: "",
     email: "",
     deliveryType: "delivery",
     address: "",
     comment: "",
   });
+
+  // Загрузка применённого промокода из sessionStorage
+  useEffect(() => {
+    try {
+      const savedPromocode = sessionStorage.getItem("appliedPromocode");
+      if (savedPromocode) {
+        setAppliedPromocode(JSON.parse(savedPromocode));
+      }
+    } catch (error) {
+      console.error("Error loading promocode from sessionStorage:", error);
+    }
+  }, []);
 
   // Перенаправляем, если корзина пуста
   useEffect(() => {
@@ -43,7 +65,6 @@ export default function CheckoutPage() {
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    // Очищаем ошибку при изменении поля
     if (errors[name as keyof CheckoutForm]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -62,21 +83,20 @@ export default function CheckoutPage() {
     const newErrors: Partial<CheckoutForm> = {};
 
     if (!form.name.trim()) {
-      newErrors.name = "Введите ваше имя";
+      newErrors.name = i18n.checkout.nameRequired;
     }
 
-    if (!form.phone.trim() || form.phone === "+996") {
-      newErrors.phone = "Введите номер телефона";
-    } else if (!/^\+996\d{9}$/.test(form.phone)) {
-      newErrors.phone = "Формат: +996XXXXXXXXX";
+    // Телефон валидируется через хук usePhoneInput
+    if (!phone.validate()) {
+      newErrors.phone = phone.errorMsg || i18n.checkout.phoneRequired;
     }
 
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      newErrors.email = "Неверный формат email";
+      newErrors.email = i18n.checkout.emailInvalid;
     }
 
     if (form.deliveryType === "delivery" && !form.address.trim()) {
-      newErrors.address = "Введите адрес доставки";
+      newErrors.address = i18n.checkout.addressRequired;
     }
 
     setErrors(newErrors);
@@ -96,11 +116,13 @@ export default function CheckoutPage() {
       // Подготавливаем данные заказа
       const orderData: any = {
         customerName: form.name,
-        customerPhone: form.phone,
+        customerPhone: phone.rawValue,
         customerEmail: form.email || undefined,
         deliveryType: form.deliveryType,
         deliveryAddress: form.deliveryType === "delivery" ? form.address : undefined,
         comment: form.comment || undefined,
+        // Добавляем промокод, если применён
+        promocode: appliedPromocode?.code || undefined,
         // Всегда отправляем items из localStorage корзины
         items: items.map(item => ({
           productId: item.productId,
@@ -112,6 +134,8 @@ export default function CheckoutPage() {
       console.log("[Checkout] Submitting order:", {
         itemCount: items.length,
         totalAmount,
+        promocode: appliedPromocode?.code,
+        discountAmount: appliedPromocode?.discountAmount,
         items: orderData.items,
       });
 
@@ -124,8 +148,11 @@ export default function CheckoutPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Ошибка при создании заказа");
+        throw new Error(data.error || i18n.checkout.errorOrder);
       }
+
+      // Очищаем примененный промокод из sessionStorage
+      sessionStorage.removeItem("appliedPromocode");
 
       // Перенаправляем на страницу оплаты Finik Pay
       if (data.paymentUrl) {
@@ -150,7 +177,7 @@ export default function CheckoutPage() {
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
                 <div className="w-12 h-12 border-4 border-white/[0.1] border-t-[#c9a96e] rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-sm text-white/40">Загрузка...</p>
+                <p className="text-sm text-white/40">{i18n.loading}</p>
               </div>
             </div>
           </div>
@@ -169,17 +196,11 @@ export default function CheckoutPage() {
       <Navbar />
       <main className="min-h-screen bg-[#0f0d0b] pt-24 pb-16">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Заголовок */}
           <div className="mb-8">
-            <h1
-              className="text-4xl md:text-5xl font-semibold text-[#f5f0e8] mb-2"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              Оформление заказа
+            <h1 className="text-4xl md:text-5xl font-semibold text-[#f5f0e8] mb-2" style={{ fontFamily: "var(--font-display)" }}>
+              {i18n.checkout.title}
             </h1>
-            <p className="text-[rgba(245,240,232,0.6)]">
-              Заполните данные для доставки
-            </p>
+            <p className="text-[rgba(245,240,232,0.6)]">{i18n.checkout.subtitle}</p>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -188,190 +209,122 @@ export default function CheckoutPage() {
               <div className="lg:col-span-2 space-y-6">
                 {/* Контактные данные */}
                 <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6">
-                  <h2 className="text-xl font-semibold text-[#f5f0e8] mb-6">
-                    Контактные данные
-                  </h2>
-
+                  <h2 className="text-xl font-semibold text-[#f5f0e8] mb-6">{i18n.checkout.contactsTitle}</h2>
                   <div className="space-y-4">
                     {/* Имя */}
                     <div>
                       <label className="block text-sm font-medium text-[rgba(245,240,232,0.7)] mb-2">
-                        Имя <span className="text-red-400">*</span>
+                        {i18n.checkout.nameLabel} <span className="text-red-400">*</span>
                       </label>
                       <input
                         type="text"
                         name="name"
                         value={form.name}
                         onChange={handleInputChange}
-                        placeholder="Ваше имя"
-                        className={`w-full px-4 py-3 bg-[#161411] border ${
-                          errors.name ? "border-red-500/50" : "border-white/[0.08]"
-                        } rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition`}
+                        placeholder={i18n.checkout.namePlaceholder}
+                        className={`w-full px-4 py-3 bg-[#161411] border ${errors.name ? "border-red-500/50" : "border-white/[0.08]"} rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition`}
                       />
-                      {errors.name && (
-                        <p className="text-sm text-red-400 mt-1">{errors.name}</p>
-                      )}
+                      {errors.name && <p className="text-sm text-red-400 mt-1">{errors.name}</p>}
                     </div>
 
                     {/* Телефон */}
                     <div>
                       <label className="block text-sm font-medium text-[rgba(245,240,232,0.7)] mb-2">
-                        Телефон <span className="text-red-400">*</span>
+                        {i18n.checkout.phoneLabel} <span className="text-red-400">*</span>
                       </label>
                       <input
                         type="tel"
                         name="phone"
-                        value={form.phone}
-                        onChange={handleInputChange}
-                        placeholder="+996XXXXXXXXX"
+                        value={phone.value}
+                        onChange={(e) => {
+                          phone.onChange(e);
+                          if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+                        }}
+                        onBlur={phone.onBlur}
+                        placeholder={i18n.checkout.phonePlaceholder}
+                        maxLength={17}
                         className={`w-full px-4 py-3 bg-[#161411] border ${
-                          errors.phone ? "border-red-500/50" : "border-white/[0.08]"
+                          errors.phone || phone.errorMsg ? "border-red-500/50" : phone.isValid ? "border-green-500/30" : "border-white/[0.08]"
                         } rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition`}
                       />
-                      {errors.phone && (
-                        <p className="text-sm text-red-400 mt-1">{errors.phone}</p>
+                      {(errors.phone || phone.errorMsg) && (
+                        <p className="text-sm text-red-400 mt-1">{errors.phone || phone.errorMsg}</p>
+                      )}
+                      {!errors.phone && phone.isValid && (
+                        <p className="text-sm text-green-400 mt-1">✓ {locale === "ky" ? "Номер туура" : locale === "en" ? "Number is valid" : "Номер корректен"}</p>
                       )}
                     </div>
 
                     {/* Email */}
                     <div>
                       <label className="block text-sm font-medium text-[rgba(245,240,232,0.7)] mb-2">
-                        Email (необязательно)
+                        {i18n.checkout.emailLabel}
                       </label>
                       <input
                         type="email"
                         name="email"
                         value={form.email}
                         onChange={handleInputChange}
-                        placeholder="your@email.com"
-                        className={`w-full px-4 py-3 bg-[#161411] border ${
-                          errors.email ? "border-red-500/50" : "border-white/[0.08]"
-                        } rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition`}
+                        placeholder={i18n.checkout.emailPlaceholder}
+                        className={`w-full px-4 py-3 bg-[#161411] border ${errors.email ? "border-red-500/50" : "border-white/[0.08]"} rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition`}
                       />
-                      {errors.email && (
-                        <p className="text-sm text-red-400 mt-1">{errors.email}</p>
-                      )}
+                      {errors.email && <p className="text-sm text-red-400 mt-1">{errors.email}</p>}
                     </div>
                   </div>
                 </div>
 
-                {/* Способ получения */}
                 <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6">
-                  <h2 className="text-xl font-semibold text-[#f5f0e8] mb-6">
-                    Способ получения
-                  </h2>
-
+                  <h2 className="text-xl font-semibold text-[#f5f0e8] mb-6">{i18n.checkout.deliveryTitle}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                    <button
-                      type="button"
-                      onClick={() => handleDeliveryTypeChange("delivery")}
-                      className={`p-4 rounded-xl border-2 transition ${
-                        form.deliveryType === "delivery"
-                          ? "border-[#c9a96e] bg-[#c9a96e]/10"
-                          : "border-white/[0.08] hover:border-white/[0.15]"
-                      }`}
-                    >
+                    <button type="button" onClick={() => handleDeliveryTypeChange("delivery")} className={`p-4 rounded-xl border-2 transition ${form.deliveryType === "delivery" ? "border-[#c9a96e] bg-[#c9a96e]/10" : "border-white/[0.08] hover:border-white/[0.15]"}`}>
                       <div className="flex items-center gap-3">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            form.deliveryType === "delivery"
-                              ? "border-[#c9a96e]"
-                              : "border-white/30"
-                          }`}
-                        >
-                          {form.deliveryType === "delivery" && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-[#c9a96e]" />
-                          )}
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${form.deliveryType === "delivery" ? "border-[#c9a96e]" : "border-white/30"}`}>
+                          {form.deliveryType === "delivery" && <div className="w-2.5 h-2.5 rounded-full bg-[#c9a96e]" />}
                         </div>
                         <div className="text-left">
-                          <p className="font-medium text-[#f5f0e8]">Доставка</p>
-                          <p className="text-sm text-[rgba(245,240,232,0.5)]">
-                            Бесплатно
-                          </p>
+                          <p className="font-medium text-[#f5f0e8]">{i18n.checkout.deliveryOption}</p>
+                          <p className="text-sm text-[rgba(245,240,232,0.5)]">{i18n.checkout.deliveryFree}</p>
                         </div>
                       </div>
                     </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeliveryTypeChange("pickup")}
-                      className={`p-4 rounded-xl border-2 transition ${
-                        form.deliveryType === "pickup"
-                          ? "border-[#c9a96e] bg-[#c9a96e]/10"
-                          : "border-white/[0.08] hover:border-white/[0.15]"
-                      }`}
-                    >
+                    <button type="button" onClick={() => handleDeliveryTypeChange("pickup")} className={`p-4 rounded-xl border-2 transition ${form.deliveryType === "pickup" ? "border-[#c9a96e] bg-[#c9a96e]/10" : "border-white/[0.08] hover:border-white/[0.15]"}`}>
                       <div className="flex items-center gap-3">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            form.deliveryType === "pickup"
-                              ? "border-[#c9a96e]"
-                              : "border-white/30"
-                          }`}
-                        >
-                          {form.deliveryType === "pickup" && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-[#c9a96e]" />
-                          )}
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${form.deliveryType === "pickup" ? "border-[#c9a96e]" : "border-white/30"}`}>
+                          {form.deliveryType === "pickup" && <div className="w-2.5 h-2.5 rounded-full bg-[#c9a96e]" />}
                         </div>
                         <div className="text-left">
-                          <p className="font-medium text-[#f5f0e8]">Самовывоз</p>
-                          <p className="text-sm text-[rgba(245,240,232,0.5)]">
-                            Из кофейни
-                          </p>
+                          <p className="font-medium text-[#f5f0e8]">{i18n.checkout.pickupOption}</p>
+                          <p className="text-sm text-[rgba(245,240,232,0.5)]">{i18n.checkout.pickupFrom}</p>
                         </div>
                       </div>
                     </button>
                   </div>
 
-                  {/* Адрес доставки */}
                   {form.deliveryType === "delivery" && (
                     <div>
                       <label className="block text-sm font-medium text-[rgba(245,240,232,0.7)] mb-2">
-                        Адрес доставки <span className="text-red-400">*</span>
+                        {i18n.checkout.addressLabel} <span className="text-red-400">*</span>
                       </label>
-                      <input
-                        type="text"
-                        name="address"
-                        value={form.address}
-                        onChange={handleInputChange}
-                        placeholder="Улица, дом, квартира"
-                        className={`w-full px-4 py-3 bg-[#161411] border ${
-                          errors.address ? "border-red-500/50" : "border-white/[0.08]"
-                        } rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition`}
+                      <input type="text" name="address" value={form.address} onChange={handleInputChange} placeholder={i18n.checkout.addressPlaceholder}
+                        className={`w-full px-4 py-3 bg-[#161411] border ${errors.address ? "border-red-500/50" : "border-white/[0.08]"} rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition`}
                       />
-                      {errors.address && (
-                        <p className="text-sm text-red-400 mt-1">{errors.address}</p>
-                      )}
+                      {errors.address && <p className="text-sm text-red-400 mt-1">{errors.address}</p>}
                     </div>
                   )}
 
-                  {/* Адрес самовывоза */}
                   {form.deliveryType === "pickup" && (
                     <div className="p-4 rounded-xl bg-[#c9a96e]/10 border border-[#c9a96e]/20">
-                      <p className="text-sm text-[#c9a96e] font-medium mb-2">
-                        📍 Адрес кофейни
-                      </p>
-                      <p className="text-sm text-[rgba(245,240,232,0.7)]">
-                        г. Бишкек, ул. Примерная, 123
-                      </p>
-                      <p className="text-xs text-[rgba(245,240,232,0.5)] mt-2">
-                        Время работы: ежедневно с 08:00 до 22:00
-                      </p>
+                      <p className="text-sm text-[#c9a96e] font-medium mb-2">📍 {i18n.checkout.pickupAddress}</p>
+                      <p className="text-sm text-[rgba(245,240,232,0.7)]">{i18n.checkout.pickupAddressValue}</p>
+                      <p className="text-xs text-[rgba(245,240,232,0.5)] mt-2">{i18n.checkout.pickupHours}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Комментарий */}
                 <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6">
-                  <h2 className="text-xl font-semibold text-[#f5f0e8] mb-6">
-                    Комментарий к заказу
-                  </h2>
-                  <textarea
-                    name="comment"
-                    value={form.comment}
-                    onChange={handleInputChange}
-                    placeholder="Дополнительные пожелания к заказу..."
-                    rows={4}
+                  <h2 className="text-xl font-semibold text-[#f5f0e8] mb-6">{i18n.checkout.commentTitle}</h2>
+                  <textarea name="comment" value={form.comment} onChange={handleInputChange} placeholder={i18n.checkout.commentPlaceholder} rows={4}
                     className="w-full px-4 py-3 bg-[#161411] border border-white/[0.08] rounded-xl text-[#f5f0e8] placeholder:text-white/30 focus:outline-none focus:border-[#c9a96e]/40 transition resize-none"
                   />
                 </div>
@@ -380,9 +333,7 @@ export default function CheckoutPage() {
               {/* Итоговая информация */}
               <div className="lg:col-span-1">
                 <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6 sticky top-24">
-                  <h2 className="text-xl font-semibold text-[#f5f0e8] mb-6">
-                    Ваш заказ
-                  </h2>
+                  <h2 className="text-xl font-semibold text-[#f5f0e8] mb-6">{i18n.checkout.orderTitle}</h2>
 
                   {/* Список товаров */}
                   <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
@@ -414,58 +365,55 @@ export default function CheckoutPage() {
 
                   <div className="h-px bg-white/[0.08] mb-6" />
 
-                  {/* Итоги */}
                   <div className="space-y-3 mb-6">
                     <div className="flex justify-between text-[rgba(245,240,232,0.6)]">
-                      <span>Товары ({itemCount})</span>
-                      <span>{totalAmount.toLocaleString("ru-KG")} с</span>
+                      <span>{i18n.checkout.subtotal} ({itemCount})</span>
+                      <span>{totalAmount.toLocaleString("ru-KG")} {i18n.menu.currency}</span>
                     </div>
+                    {appliedPromocode && (
+                      <div className="flex justify-between text-green-400">
+                        <div>
+                          <span>{i18n.checkout.promocodeApplied}</span>
+                          <span className="ml-2 text-xs px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded">
+                            {appliedPromocode.code}
+                          </span>
+                        </div>
+                        <span>-{appliedPromocode.discountAmount.toLocaleString("ru-KG")} {i18n.menu.currency}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-[rgba(245,240,232,0.6)]">
-                      <span>Доставка</span>
-                      <span>Бесплатно</span>
+                      <span>{i18n.checkout.delivery}</span>
+                      <span>{i18n.checkout.deliveryFreeValue}</span>
                     </div>
                     <div className="h-px bg-white/[0.08]" />
                     <div className="flex justify-between text-lg font-semibold text-[#f5f0e8]">
-                      <span>Итого</span>
+                      <span>{i18n.checkout.total}</span>
                       <span className="text-[#c9a96e]">
-                        {totalAmount.toLocaleString("ru-KG")} с
+                        {(totalAmount - (appliedPromocode?.discountAmount || 0)).toLocaleString("ru-KG")} {i18n.menu.currency}
                       </span>
                     </div>
                   </div>
 
-                  {/* Кнопка оформления */}
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full h-12 rounded-xl bg-[#c9a96e] text-[#0f0d0b] text-sm font-semibold hover:bg-[#d4b87a] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
+                  <button type="submit" disabled={submitting} className="w-full h-12 rounded-xl bg-[#c9a96e] text-[#0f0d0b] text-sm font-semibold hover:bg-[#d4b87a] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                     {submitting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-[#0f0d0b]/30 border-t-[#0f0d0b] rounded-full animate-spin" />
-                        Оформление...
+                        {i18n.checkout.submitting}
                       </>
                     ) : (
                       <>
-                        Перейти к оплате
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M5 12h14M12 5l7 7-7 7"/>
-                        </svg>
+                        {i18n.checkout.payBtn}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                       </>
                     )}
                   </button>
 
-                  <Link
-                    href="/cart"
-                    className="block w-full h-10 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white text-sm font-medium hover:bg-white/[0.08] transition flex items-center justify-center mt-3"
-                  >
-                    Вернуться в корзину
+                  <Link href="/cart" className="block w-full h-10 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white text-sm font-medium hover:bg-white/[0.08] transition flex items-center justify-center mt-3">
+                    {i18n.checkout.backToCart}
                   </Link>
 
-                  {/* Информация об оплате */}
                   <div className="mt-6 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                    <p className="text-xs text-[rgba(245,240,232,0.5)] text-center">
-                      Безопасная оплата через Finik Pay
-                    </p>
+                    <p className="text-xs text-[rgba(245,240,232,0.5)] text-center">{i18n.checkout.securePayment}</p>
                   </div>
                 </div>
               </div>

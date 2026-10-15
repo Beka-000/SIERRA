@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type Permission } from "@/lib/permissions";
+import SierraLogo from "@/app/components/SierraLogo";
 
 interface NavItem {
   label: string;
@@ -147,17 +148,9 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         `}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 h-16 px-6 border-b border-white/[0.06]">
-          <div className="w-8 h-8 rounded-lg bg-[#c9a96e]/10 border border-[#c9a96e]/20 flex items-center justify-center shrink-0">
-            <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
-              <path d="M6 10h20v2a10 10 0 01-20 0v-2z" stroke="#c9a96e" strokeWidth="1.5" strokeLinejoin="round"/>
-              <path d="M10 10V7a6 6 0 0112 0v3" stroke="#c9a96e" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white">Sierra Coffee</p>
-            <p className="text-xs text-white/40">Admin Panel</p>
-          </div>
+        <div className="flex items-center gap-3 h-16 px-4 border-b border-white/[0.06]">
+          <SierraLogo href="/admin/dashboard" size="xs" />
+          <p className="text-xs text-white/40 ml-1">Admin Panel</p>
         </div>
 
         {/* Navigation */}

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
 import { t } from "@/lib/i18n";
+import SierraLogo from "@/app/components/SierraLogo";
 
 declare global {
   interface Window {
@@ -215,49 +216,9 @@ if (existingScript) {
       <div className="w-full max-w-md">
 
         {/* Logo */}
-        <Link
-          href="/"
-          className="flex items-center justify-center gap-2.5 mb-8 group"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[#c9a96e]/10 border border-[#c9a96e]/25 flex items-center justify-center transition group-hover:bg-[#c9a96e]/20">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 32 32"
-              fill="none"
-            >
-              <path
-                d="M6 12h20v2a10 10 0 01-20 0v-2z"
-                stroke="#c9a96e"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-
-              <path
-                d="M10 12V8a6 6 0 0112 0v4"
-                stroke="#c9a96e"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-
-              <path
-                d="M10 24v3M22 24v3M8 27h16"
-                stroke="#c9a96e"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-
-          <span
-            className="text-2xl font-semibold tracking-tight text-[#f5f0e8]"
-            style={{
-              fontFamily: "var(--font-display)",
-            }}
-          >
-            Sierra Coffee
-          </span>
-        </Link>
+        <div className="flex justify-center mb-8">
+          <SierraLogo href="/" size="md" priority />
+        </div>
 
         {/* Login Card */}
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-8">

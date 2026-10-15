@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
 import { type Locale, DEFAULT_LOCALE } from "@/lib/i18n";
 
 interface LocaleContextValue {
@@ -13,12 +19,15 @@ const LocaleContext = createContext<LocaleContextValue | undefined>(undefined);
 const LOCALE_STORAGE_KEY = "sierra_locale";
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
+  // Всегда начинаем с DEFAULT_LOCALE — это гарантирует совпадение
+  // серверного и первого клиентского рендера (гидратация без mismatch).
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
 
-  // Читаем locale из localStorage при монтировании
+  // После монтирования читаем сохранённую локаль из localStorage.
+  // Это происходит ТОЛЬКО на клиенте, после успешной гидратации.
   useEffect(() => {
     const saved = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
-    if (saved && ["ru", "en", "ky"].includes(saved)) {
+    if (saved && (["ru", "en", "ky"] as Locale[]).includes(saved)) {
       setLocaleState(saved);
     }
   }, []);

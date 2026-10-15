@@ -6,6 +6,7 @@ import { useLocale } from "@/lib/LocaleContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
 import { t, LOCALES } from "@/lib/i18n";
+import SierraLogo from "@/app/components/SierraLogo";
 
 export default function Navbar() {
   const { locale, setLocale } = useLocale();
@@ -19,10 +20,11 @@ export default function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   
   const links = [
-    { label: i18n.nav.menu,     href: "#menu" },
-    { label: i18n.nav.about,    href: "#about" },
-    { label: i18n.nav.booking,  href: "#booking" },
-    { label: i18n.nav.contacts, href: "#contacts" },
+    { label: i18n.nav.menu,     href: "/menu" },
+    { label: i18n.nav.about,    href: "/about" },
+    { label: i18n.nav.reviews,  href: "/reviews" },
+    { label: i18n.nav.booking,  href: "/#booking" },
+    { label: i18n.nav.contacts, href: "/contacts" },
   ];
 
   useEffect(() => {
@@ -50,41 +52,18 @@ export default function Navbar() {
            style={{ height: "clamp(64px, 10vw, 72px)" }}>
 
         {/* Логотип */}
-        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group flex-shrink-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-[#c9a96e]/10 border border-[#c9a96e]/25 flex items-center justify-center transition group-hover:bg-[#c9a96e]/20">
-            <svg className="w-4 h-4 sm:w-[18px] sm:h-[18px]" viewBox="0 0 32 32" fill="none">
-              <path
-                d="M6 12h20v2a10 10 0 01-20 0v-2z"
-                stroke="#c9a96e" strokeWidth="1.5" strokeLinejoin="round"
-              />
-              <path
-                d="M10 12V8a6 6 0 0112 0v4"
-                stroke="#c9a96e" strokeWidth="1.5" strokeLinecap="round"
-              />
-              <path
-                d="M10 24v3M22 24v3M8 27h16"
-                stroke="#c9a96e" strokeWidth="1.5" strokeLinecap="round"
-              />
-            </svg>
-          </div>
-          <span
-            className="text-base sm:text-lg font-semibold tracking-tight text-[#f5f0e8] hidden xs:inline"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Sierra Coffee
-          </span>
-        </Link>
+        <SierraLogo href="/" size="sm" priority />
 
         {/* Desktop-навигация */}
         <nav className="hidden md:flex items-center gap-8">
           {links.map((l) => (
-            <a
+            <Link
               key={l.href}
               href={l.href}
               className="text-sm text-[rgba(245,240,232,0.55)] hover:text-[#f5f0e8] transition-colors duration-200"
             >
               {l.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -189,7 +168,7 @@ export default function Navbar() {
                         <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
                         <circle cx="12" cy="7" r="4"/>
                       </svg>
-                      Мой профиль
+                      {i18n.nav.myProfile}
                     </Link>
                     <Link
                       href="/my-bookings"
@@ -202,7 +181,7 @@ export default function Navbar() {
                         <line x1="8" y1="2" x2="8" y2="6"/>
                         <line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
-                      Мои бронирования
+                      {i18n.nav.myBookings}
                     </Link>
                     <button
                       onClick={async () => {
@@ -318,7 +297,7 @@ export default function Navbar() {
                     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
                   </svg>
-                  Мой профиль
+                  {i18n.nav.myProfile}
                 </Link>
                 <Link
                   href="/my-bookings"
@@ -331,7 +310,7 @@ export default function Navbar() {
                     <line x1="8" y1="2" x2="8" y2="6"/>
                     <line x1="3" y1="10" x2="21" y2="10"/>
                   </svg>
-                  Мои бронирования
+                  {i18n.nav.myBookings}
                 </Link>
               </div>
             </div>
@@ -340,20 +319,20 @@ export default function Navbar() {
           {/* Навигационные ссылки */}
           <div className="flex-1 flex flex-col gap-1">
             {links.map((l) => (
-              <a
+              <Link
                 key={l.href}
                 href={l.href}
                 onClick={() => setMenuOpen(false)}
                 className="py-3.5 px-3 text-base text-[rgba(245,240,232,0.7)] hover:text-[#f5f0e8] hover:bg-white/[0.04] rounded-lg transition-colors active:scale-[0.98]"
               >
                 {l.label}
-              </a>
+              </Link>
             ))}
           </div>
           
           {/* Язык в мобильном меню */}
           <div className="py-4 border-y border-white/[0.06] my-4">
-            <p className="text-xs text-[rgba(245,240,232,0.35)] mb-3 uppercase tracking-wider px-3">Язык / Language</p>
+            <p className="text-xs text-[rgba(245,240,232,0.35)] mb-3 uppercase tracking-wider px-3">{i18n.nav.langLabel}</p>
             <div className="grid grid-cols-3 gap-2">
               {LOCALES.map((l) => (
                 <button

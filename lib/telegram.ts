@@ -1,7 +1,6 @@
 /**
  * Утилита для отправки Telegram-сообщений через Bot API.
- * Использует нативный fetch, без импорта node-telegram-bot-api на сервере,
- * чтобы избежать проблем совместимости с Edge/Node runtime.
+ * Использует нативный fetch, без сторонних библиотек.
  */
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
@@ -28,104 +27,23 @@ export async function sendMessage(chatId: string | number, text: string): Promis
   }
 }
 
-// ─── Уведомление администратору о новом заказе ───────────────────────────────
+// ─── Уведомление о новом заказе ─────────────────────────────────────────────
 
-export interface OrderNotificationData {
-  orderNumber: string;
-  customerName: string;
-  customerPhone: string;
-  fulfillmentType: "dine_in" | "pickup" | "delivery";
-  deliveryAddress?: string;
-  comment?: string;
-  totalAmount: string | number;
-  items: Array<{
-    title: string;
-    quantity: number;
-    unitPrice: string | number;
-  }>;
-}
-
-export async function notifyAdminNewOrder(order: OrderNotificationData): Promise<void> {
-  if (!ADMIN_CHAT_ID) {
-    console.warn("[Telegram] TELEGRAM_ADMIN_CHAT_ID не задан — уведомление пропущено");
-    return;
-  }
-
-  const fulfillmentLabel: Record<OrderNotificationData["fulfillmentType"], string> = {
-    dine_in: "🪑 В зале",
-    pickup: "🛍 Самовывоз",
-    delivery: "🚗 Доставка",
-  };
-
-  const itemsList = order.items
-    .map((i) => `  • ${i.title} × ${i.quantity} — ${Number(i.unitPrice).toFixed(2)} ₸`)
-    .join("\n");
-
-  const text = [
-    `☕️ <b>Новый заказ #${order.orderNumber}</b>`,
-    ``,
-    `👤 <b>Клиент:</b> ${order.customerName}`,
-    `📱 <b>Телефон:</b> ${order.customerPhone}`,
-    `📦 <b>Тип:</b> ${fulfillmentLabel[order.fulfillmentType]}`,
-    order.deliveryAddress ? `📍 <b>Адрес:</b> ${order.deliveryAddress}` : null,
-    order.comment ? `💬 <b>Комментарий:</b> ${order.comment}` : null,
-    ``,
-    `🛒 <b>Состав заказа:</b>`,
-    itemsList,
-    ``,
-    `💰 <b>Итого:</b> ${Number(order.totalAmount).toFixed(2)} ₸`,
-  ]
-    .filter((line) => line !== null)
-    .join("\n");
+export async function sendTelegramOrder(order: any) {
+  const text = `🧾 <b>Новый заказ #${order.id.slice(0, 8)}</b>\n\nКлиент: ${order.customerName || "Гость"}\nТелефон: ${order.customerPhone || "-"}\nСумма: ${order.total} сом\nАдрес: ${order.address || "Самовывоз"}`;
 
   await sendMessage(ADMIN_CHAT_ID, text);
-}
-
-// ─── Подтверждение клиенту ───────────────────────────────────────────────────
-
-export interface ClientConfirmationData {
-  telegramChatId: string | number;
-  orderNumber: string;
-  customerName: string;
-  totalAmount: string | number;
-  fulfillmentType: "dine_in" | "pickup" | "delivery";
-  estimatedMinutes?: number;
-}
-
-export async function notifyClientOrderReceived(data: ClientConfirmationData): Promise<void> {
-  const fulfillmentHint: Record<ClientConfirmationData["fulfillmentType"], string> = {
-    dine_in: "Ваш заказ готовится — скоро принесём к столику.",
-    pickup: "Как только заказ будет готов, вы получите уведомление.",
-    delivery: "Наш курьер доставит заказ в ближайшее время.",
-  };
-
-  const eta = data.estimatedMinutes
-    ? `\n⏱ Ожидаемое время: <b>~${data.estimatedMinutes} мин</b>`
-    : "";
-
-  const text = [
-    `✅ <b>Заказ принят, ${data.customerName}!</b>`,
-    ``,
-    `Номер вашего заказа: <b>#${data.orderNumber}</b>`,
-    `Сумма: <b>${Number(data.totalAmount).toFixed(2)} ₸</b>${eta}`,
-    ``,
-    fulfillmentHint[data.fulfillmentType],
-    ``,
-    `Спасибо, что выбрали <b>Sierra Coffee</b> ☕️`,
-  ].join("\n");
-
-  await sendMessage(data.telegramChatId, text);
 }
 
 // ─── Уведомление клиенту об изменении статуса ────────────────────────────────
 
 const STATUS_MESSAGES: Record<string, string> = {
-  CONFIRMED: "✅ Ваш заказ <b>подтверждён</b> и передан на кухню.",
-  COOKING: "👨‍🍳 Ваш заказ <b>готовится</b>.",
-  READY: "🔔 Ваш заказ <b>готов!</b>",
+  CONFIRMED:        "✅ Ваш заказ <b>подтверждён</b> и передан на кухню.",
+  COOKING:          "👨‍🍳 Ваш заказ <b>готовится</b>.",
+  READY:            "🔔 Ваш заказ <b>готов!</b>",
   OUT_FOR_DELIVERY: "🚗 Ваш заказ <b>передан курьеру</b>.",
-  COMPLETED: "🎉 Заказ <b>выполнен</b>. Приятного аппетита!",
-  CANCELLED: "❌ Ваш заказ <b>отменён</b>. Свяжитесь с нами, если это ошибка.",
+  COMPLETED:        "🎉 Заказ <b>выполнен</b>. Приятного аппетита!",
+  CANCELLED:        "❌ Ваш заказ <b>отменён</b>. Свяжитесь с нами, если это ошибка.",
 };
 
 export async function notifyClientStatusChange(
@@ -138,4 +56,58 @@ export async function notifyClientStatusChange(
 
   const text = `${message}\n\nЗаказ <b>#${orderNumber}</b>`;
   await sendMessage(telegramChatId, text);
+}
+
+// ─── Редактирование сообщения с обновлённым статусом ────────────────────────
+
+const STATUS_EMOJI: Record<string, string> = {
+  NEW:              "🆕",
+  CONFIRMED:        "✅",
+  COOKING:          "👨‍🍳",
+  READY:            "🔔",
+  OUT_FOR_DELIVERY: "🚗",
+  COMPLETED:        "🎉",
+  CANCELLED:        "❌",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  NEW:              "Новый",
+  CONFIRMED:        "Принят",
+  COOKING:          "Готовится",
+  READY:            "Готов",
+  OUT_FOR_DELIVERY: "Передан курьеру",
+  COMPLETED:        "Выполнен",
+  CANCELLED:        "Отменён",
+};
+
+export async function editOrderMessage(
+  chatId: string | number,
+  messageId: number,
+  originalText: string,
+  newStatus: string,
+  updatedBy?: string
+): Promise<void> {
+  const emoji = STATUS_EMOJI[newStatus] ?? "•";
+  const label = STATUS_LABEL[newStatus] ?? newStatus;
+  const byLine = updatedBy ? ` (${updatedBy})` : "";
+  const newText = `${originalText}\n\n${emoji} <b>Статус изменён на: ${label}</b>${byLine}`;
+
+  const res = await fetch(`${TG_API}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text: newText,
+      parse_mode: "HTML",
+      reply_markup: ["COMPLETED", "CANCELLED"].includes(newStatus)
+        ? { inline_keyboard: [] }
+        : undefined,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(`[Telegram] editOrderMessage failed (status ${res.status}): ${err}`);
+  }
 }

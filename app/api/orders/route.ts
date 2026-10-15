@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createFinikPayment } from "@/lib/finik";
 import { serializeBigInt } from "@/lib/bigint-utils";
+import { sendTelegramOrder } from "@/lib/telegram";
 
 /**
  * POST /api/orders
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
       deliveryType, // "delivery" | "pickup"
       deliveryAddress,
       comment,
+      promocode, // Промокод для применения скидки
     } = body;
 
     // Валидация обязательных полей
@@ -122,12 +124,116 @@ export async function POST(request: NextRequest) {
         };
       });
 
-      const totalAmount = subtotal;
+      // 4. Проверяем и применяем промокод
+      let discountAmount = 0;
+      let appliedPromocode = null;
 
-      // 4. Генерируем уникальный номер заказа
+      if (promocode && typeof promocode === 'string') {
+        // Ищем промокод
+        const foundPromocode = await tx.promocode.findUnique({
+          where: { code: promocode.toUpperCase() },
+        });
+
+        if (!foundPromocode) {
+          throw new Error("Промокод не найден");
+        }
+
+        // Проверяем статус
+        if (!foundPromocode.isActive) {
+          throw new Error("Промокод неактивен");
+        }
+
+        const now = new Date();
+        
+        // Проверяем даты
+        if (foundPromocode.validFrom && foundPromocode.validFrom > now) {
+          throw new Error("Промокод еще не активен");
+        }
+        
+        if (foundPromocode.validUntil && foundPromocode.validUntil < now) {
+          throw new Error("Промокод истек");
+        }
+
+        // Проверяем лимит использования
+        if (foundPromocode.usageLimit && foundPromocode.usedCount >= foundPromocode.usageLimit) {
+          throw new Error("Промокод исчерпан");
+        }
+
+        // Проверяем минимальную сумму
+        if (foundPromocode.minOrderAmount && subtotal < Number(foundPromocode.minOrderAmount)) {
+          throw new Error(`Минимальная сумма заказа для промокода: ${foundPromocode.minOrderAmount} с`);
+        }
+
+        // Проверяем лимит на пользователя (только для авторизованных)
+        if (session && foundPromocode.usesPerCustomer) {
+          const userUsageCount = await tx.promocodeUsage.count({
+            where: {
+              promocodeId: foundPromocode.id,
+              userId: session.userId,
+            },
+          });
+
+          if (userUsageCount >= foundPromocode.usesPerCustomer) {
+            throw new Error("Вы уже использовали этот промокод максимальное количество раз");
+          }
+        }
+
+        // Проверяем для первого заказа
+        if (session && foundPromocode.firstOrderOnly) {
+          const existingOrders = await tx.order.count({
+            where: { userId: session.userId },
+          });
+
+          if (existingOrders > 0) {
+            throw new Error("Промокод действителен только для первого заказа");
+          }
+        }
+
+        // Проверяем применимые товары
+        if (foundPromocode.applicableProducts && foundPromocode.applicableProducts.length > 0) {
+          const hasApplicableProduct = cartItems.some((item: any) =>
+            foundPromocode.applicableProducts!.includes(item.productId)
+          );
+
+          if (!hasApplicableProduct) {
+            throw new Error("Промокод не применим к товарам в корзине");
+          }
+        }
+
+        // Проверяем применимые категории
+        if (foundPromocode.applicableCategories && foundPromocode.applicableCategories.length > 0) {
+          const hasApplicableCategory = cartItems.some((item: any) =>
+            item.product.categoryId &&
+            foundPromocode.applicableCategories!.includes(item.product.categoryId)
+          );
+
+          if (!hasApplicableCategory) {
+            throw new Error("Промокод не применим к категориям товаров в корзине");
+          }
+        }
+
+        // Вычисляем скидку
+        if (foundPromocode.discountType === 'percent') {
+          discountAmount = Math.floor(subtotal * Number(foundPromocode.discountValue) / 100);
+          
+          // Ограничиваем максимальную скидку
+          if (foundPromocode.maxDiscountAmount) {
+            discountAmount = Math.min(discountAmount, Number(foundPromocode.maxDiscountAmount));
+          }
+        } else {
+          // fixed
+          discountAmount = Math.min(Number(foundPromocode.discountValue), subtotal);
+        }
+
+        appliedPromocode = foundPromocode;
+      }
+
+      const totalAmount = subtotal - discountAmount;
+
+      // 5. Генерируем уникальный номер заказа
       const orderNumber = `SC${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-      // 5. Создаем заказ
+      // 6. Создаем заказ
       const order = await tx.order.create({
         data: {
           orderNumber,
@@ -140,9 +246,10 @@ export async function POST(request: NextRequest) {
           comment: comment || null,
           paymentMethod: "online",
           subtotal,
-          discountAmount: 0,
+          discountAmount,
           totalAmount,
           status: "NEW",
+          promocodeId: appliedPromocode?.id || null,
           items: {
             create: orderItems,
           },
@@ -156,7 +263,26 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 6. Создаем запись о платеже
+      // 7. Если применен промокод, обновляем счетчик и создаем запись использования
+      if (appliedPromocode) {
+        // Атомарно увеличиваем счетчик
+        await tx.promocode.update({
+          where: { id: appliedPromocode.id },
+          data: { usedCount: { increment: 1 } },
+        });
+
+        // Создаем запись использования
+        await tx.promocodeUsage.create({
+          data: {
+            promocodeId: appliedPromocode.id,
+            orderId: order.id,
+            userId: session?.userId || null,
+            discountAmount,
+          },
+        });
+      }
+
+      // 8. Создаем запись о платеже
       const payment = await tx.payment.create({
         data: {
           orderId: order.id,
@@ -167,7 +293,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 7. Очищаем корзину пользователя (только для авторизованных)
+      // 9. Очищаем корзину пользователя (только для авторизованных)
       if (session) {
         await tx.cartItem.deleteMany({
           where: {
@@ -181,7 +307,25 @@ export async function POST(request: NextRequest) {
       return { order, payment };
     });
 
-    // 8. Создаем платеж в Finik Pay
+    // 10. Отправляем уведомление в Telegram (fire-and-forget, не блокируем ответ)
+    sendTelegramOrder({
+      orderId:         result.order.id,
+      orderNumber:     result.order.orderNumber,
+      customerName:    result.order.customerName,
+      customerPhone:   result.order.customerPhone,
+      fulfillmentType: result.order.fulfillmentType as "dine_in" | "pickup" | "delivery",
+      deliveryAddress: result.order.deliveryAddress,
+      comment:         result.order.comment,
+      totalAmount:     Number(result.order.totalAmount),
+      discountAmount:  Number(result.order.discountAmount),
+      items: result.order.items.map((item) => ({
+        title:     item.product.title,
+        quantity:  item.quantity,
+        unitPrice: Number(item.unitPrice),
+      })),
+    }).catch((err) => console.error("[Telegram] Notification failed:", err));
+
+    // 11. Создаем платеж в Finik Pay
     try {
       const paymentUrl = await createFinikPayment({
         amount: Number(result.order.totalAmount),
