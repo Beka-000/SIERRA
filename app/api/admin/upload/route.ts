@@ -22,6 +22,9 @@ import {
   type UploadApiResponse,
 }                                       from "@/lib/cloudinary";
 
+// Явно указываем Node.js runtime — cloudinary SDK использует Node.js Streams
+export const runtime = "nodejs";
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"] as const;
 
@@ -74,24 +77,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 4. Читаем файл в Buffer ───────────────────────────────────────────────
+    // ── 4. Читаем файл и конвертируем в base64 data URI ──────────────────────
     const arrayBuffer = await file.arrayBuffer();
-    const buffer      = Buffer.from(arrayBuffer);
+    const base64      = Buffer.from(arrayBuffer).toString("base64");
+    const dataUri     = `data:${file.type};base64,${base64}`;
 
     // ── 5. Загружаем в Cloudinary ─────────────────────────────────────────────
-    const uploadResult: UploadApiResponse = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder:       DEFAULT_UPLOAD_FOLDER,
-          resource_type: "image",
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result as UploadApiResponse);
-        }
-      );
-      stream.end(buffer);
-    });
+    const uploadResult = await cloudinary.uploader.upload(dataUri, {
+      folder:        DEFAULT_UPLOAD_FOLDER,
+      resource_type: "image",
+    }) as UploadApiResponse;
 
     // ── 6. Сохраняем запись в БД ──────────────────────────────────────────────
     const fileRecord = await prisma.file.create({
