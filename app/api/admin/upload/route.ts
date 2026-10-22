@@ -4,14 +4,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, handleApiError } from "@/lib/api-middleware";
+import { requireAuth } from "@/lib/api-middleware";
 import { prisma } from "@/lib/prisma";
 import { serializeBigInt } from "@/lib/bigint-utils";
 
 // Явно Node.js runtime — cloudinary SDK несовместим с Edge runtime
 export const runtime = "nodejs";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+// Leave room for multipart headers under Vercel Functions' 4.5 MB request limit.
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"] as const;
 
 export async function POST(request: NextRequest) {
@@ -20,28 +21,32 @@ export async function POST(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   // ── 2. Проверяем переменные окружения ──────────────────────────────────────
-  const cloudName  = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey     = process.env.CLOUDINARY_API_KEY;
-  const apiSecret  = process.env.CLOUDINARY_API_SECRET;
-
-  if (!cloudName || !apiKey || !apiSecret) {
-    const missing = [
-      !cloudName  && "CLOUDINARY_CLOUD_NAME",
-      !apiKey     && "CLOUDINARY_API_KEY",
-      !apiSecret  && "CLOUDINARY_API_SECRET",
-    ].filter(Boolean).join(", ");
-
-    console.error(`[Upload] Missing env vars: ${missing}`);
-    return NextResponse.json(
-      {
-        error:   "storage_not_configured",
-        message: `Хранилище не настроено. Отсутствуют переменные: ${missing}`,
-      },
-      { status: 503 }
-    );
-  }
-
+  let stage = "configuration";
   try {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    const cloudinaryUrl = process.env.CLOUDINARY_URL;
+    const hasExplicitCredentials = Boolean(cloudName && apiKey && apiSecret);
+
+    if (!hasExplicitCredentials && !cloudinaryUrl) {
+      const missing = [
+        !cloudName && !cloudinaryUrl && "CLOUDINARY_CLOUD_NAME (or CLOUDINARY_URL)",
+        !apiKey && !cloudinaryUrl && "CLOUDINARY_API_KEY (or CLOUDINARY_URL)",
+        !apiSecret && !cloudinaryUrl && "CLOUDINARY_API_SECRET (or CLOUDINARY_URL)",
+      ].filter(Boolean).join(", ");
+
+      console.error(`[Upload] Cloudinary is not configured; missing: ${missing}`);
+      return NextResponse.json(
+        {
+          error: "storage_not_configured",
+          message: "Хранилище изображений не настроено на сервере. Проверьте переменные Cloudinary в Vercel.",
+        },
+        { status: 503 }
+      );
+    }
+
+    stage = "request parsing";
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -62,12 +67,13 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "validation_error", message: "Размер файла превышает 5 МБ" },
+        { error: "validation_error", message: "Размер файла превышает 4 МБ" },
         { status: 400 }
       );
     }
 
     // ── 4. Конвертируем в base64 data URI ─────────────────────────────────────
+    stage = "file conversion";
     console.log(`[Upload] Converting file: ${file.name}, size: ${file.size}, type: ${file.type}`);
     const arrayBuffer = await file.arrayBuffer();
     const base64  = Buffer.from(arrayBuffer).toString("base64");
@@ -78,21 +84,41 @@ export async function POST(request: NextRequest) {
     console.log("[Upload] Importing cloudinary SDK...");
     const { v2: cloudinary } = await import("cloudinary");
 
-    cloudinary.config({
-      cloud_name: cloudName,
-      api_key:    apiKey,
-      api_secret: apiSecret,
-      secure:     true,
-    });
+    // Cloudinary supports both three separate credentials and the single
+    // CLOUDINARY_URL format commonly supplied by Vercel integrations.
+    if (hasExplicitCredentials) {
+      cloudinary.config({
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+        secure: true,
+      });
+    } else {
+      // Calling config() with no arguments loads CLOUDINARY_URL from the
+      // runtime environment without putting credentials in logs or responses.
+      cloudinary.config();
+      cloudinary.config({ secure: true });
+    }
+
+    const configured = cloudinary.config();
+    if (!configured.cloud_name || !configured.api_key || !configured.api_secret) {
+      console.error("[Upload] Cloudinary configuration resolved without all required credentials");
+      return NextResponse.json(
+        { error: "storage_not_configured", message: "Не удалось прочитать настройки Cloudinary на сервере." },
+        { status: 503 }
+      );
+    }
 
     // ── 6. Загружаем в Cloudinary ─────────────────────────────────────────────
+    stage = "Cloudinary upload";
     console.log("[Upload] Uploading to Cloudinary...");
     const uploadResult = await cloudinary.uploader.upload(dataUri, {
       folder:        "sierra-coffee/products",
       resource_type: "image",
     });
 
-    console.log(`[Upload] Success: ${uploadResult.secure_url}`);
+    stage = "database save";
+    console.log("[Upload] Cloudinary upload completed");
 
     // ── 7. Сохраняем запись в БД ──────────────────────────────────────────────
     const fileRecord = await prisma.file.create({
@@ -115,7 +141,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error: unknown) {
     // Логируем полный стек — будет виден в Vercel Function Logs
-    console.error("[Upload] Error:", error instanceof Error ? error.stack : error);
-    return handleApiError(error);
+    console.error(`[Upload] Failed during ${stage}:`, error instanceof Error ? error.stack : error);
+    if (stage === "configuration") {
+      return NextResponse.json(
+        { error: "storage_not_configured", message: "Настройки Cloudinary некорректны. Проверьте CLOUDINARY_URL или три переменные Cloudinary в Vercel." },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json(
+      { error: "upload_failed", message: "Не удалось загрузить изображение. Проверьте логи функции загрузки в Vercel." },
+      { status: 500 }
+    );
   }
 }

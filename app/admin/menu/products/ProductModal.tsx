@@ -142,9 +142,9 @@ export default function ProductModal({
       return;
     }
 
-    // Проверка размера (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      showError("Ошибка", "Размер файла не должен превышать 5 МБ");
+    // Keep the multipart request below Vercel Functions' 4.5 MB payload limit.
+    if (file.size > 4 * 1024 * 1024) {
+      showError("Ошибка", "Размер файла не должен превышать 4 МБ");
       return;
     }
 
