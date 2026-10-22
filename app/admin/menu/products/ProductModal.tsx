@@ -172,7 +172,13 @@ export default function ProductModal({
       }
 
       const data = await res.json();
+      if (!data.id || !data.url) {
+        throw new Error("Изображение загружено, но сервер не вернул ссылку для сохранения");
+      }
       setUploadedFileId(data.id);
+      // Show the persisted Cloudinary image, so the preview reflects what will
+      // be attached to the product when the user saves the form.
+      setImagePreview(data.url);
       success("Успешно", "Изображение загружено");
     } catch (err) {
       console.error("[Image Upload Error]", err);
@@ -314,10 +320,9 @@ export default function ProductModal({
                   alt="Preview"
                   className="max-h-48 mx-auto rounded-lg object-cover"
                   onError={(e) => {
-                    // Старый URL недоступен (напр. Vercel Blob) — очищаем превью
+                    // Hide a broken legacy preview without discarding the
+                    // currently selected file association.
                     e.currentTarget.style.display = "none";
-                    setImagePreview(null);
-                    setUploadedFileId(null);
                   }}
                 />
                 <div className="mt-4 flex gap-2 justify-center">
