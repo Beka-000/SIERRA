@@ -201,13 +201,31 @@ export default function ProductsPage() {
             label: "Товар",
             render: (row) => (
               <div className="flex items-center gap-3">
-                {row.photoFile?.url && (
+                {row.photoFile?.url ? (
                   <img
                     src={row.photoFile.url}
                     alt={row.title}
-                    className="w-12 h-12 rounded-lg object-cover"
+                    className="w-12 h-12 rounded-lg object-cover bg-white/[0.04]"
+                    onError={(e) => {
+                      // Старые Vercel Blob URL недоступны — показываем заглушку
+                      const target = e.currentTarget;
+                      target.style.display = "none";
+                      const placeholder = target.nextElementSibling as HTMLElement | null;
+                      if (placeholder) placeholder.style.display = "flex";
+                    }}
                   />
-                )}
+                ) : null}
+                {/* Заглушка — показывается когда нет URL или картинка не грузится */}
+                <div
+                  className="w-12 h-12 rounded-lg bg-white/[0.04] items-center justify-center shrink-0"
+                  style={{ display: row.photoFile?.url ? "none" : "flex" }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/20">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                </div>
                 <div>
                   <p className="text-sm font-medium text-white">{row.title}</p>
                   <p className="text-xs text-white/40">{row.category.title}</p>

@@ -313,6 +313,12 @@ export default function ProductModal({
                   src={imagePreview}
                   alt="Preview"
                   className="max-h-48 mx-auto rounded-lg object-cover"
+                  onError={(e) => {
+                    // Старый URL недоступен (напр. Vercel Blob) — очищаем превью
+                    e.currentTarget.style.display = "none";
+                    setImagePreview(null);
+                    setUploadedFileId(null);
+                  }}
                 />
                 <div className="mt-4 flex gap-2 justify-center">
                   <Button
