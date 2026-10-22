@@ -1,15 +1,19 @@
+"use client";
+
 /**
  * SierraLogo — единый компонент логотипа Sierra Coffee.
  *
- * Теперь использует PNG с прозрачным фоном:
- * - logo-white.png  — белый логотип для тёмных фонов
- * - logo-black.png  — чёрный логотип для светлых фонов
+ * Использует PNG с прозрачным фоном:
+ *   logo-white.png — белый логотип для тёмных фонов
+ *   logo-black.png — чёрный логотип для светлых фонов
  *
  * Размеры (сторона квадрата):
  *   xs  32px  — admin sidebar
  *   sm  44px  — navbar desktop, footer
  *   md  64px  — login / register
  *   lg  88px  — hero / splash
+ *
+ * "use client" гарантирует единый рендер и устраняет RSC/Client hydration mismatch.
  */
 
 import Image from "next/image";
@@ -20,7 +24,7 @@ type LogoVariant = "white" | "black" | "auto";
 
 interface SierraLogoProps {
   size?:     LogoSize;
-  variant?:  LogoVariant;   // white = на тёмном, black = на светлом, auto = white
+  variant?:  LogoVariant;
   href?:     string;
   className?: string;
   priority?:  boolean;
@@ -41,7 +45,7 @@ export default function SierraLogo({
   priority  = false,
 }: SierraLogoProps) {
   const px  = SIZE_PX[size];
-  const src = (variant === "black")
+  const src = variant === "black"
     ? "/images/logo-black.png"
     : "/images/logo-white.png";
 

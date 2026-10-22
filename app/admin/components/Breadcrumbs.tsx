@@ -38,6 +38,10 @@ export default function Breadcrumbs() {
   let currentPath = "/admin";
   for (const segment of segments) {
     currentPath += `/${segment}`;
+    // Пропускаем сегмент, если его путь совпадает с уже добавленным "Главная"
+    if (currentPath === "/admin/dashboard" && breadcrumbs[0].href === "/admin/dashboard") {
+      continue;
+    }
     const label = pathMap[segment] || segment;
     breadcrumbs.push({ label, href: currentPath });
   }
@@ -50,7 +54,7 @@ export default function Breadcrumbs() {
         const isLast = index === breadcrumbs.length - 1;
 
         return (
-          <div key={item.href} className="flex items-center gap-2">
+          <div key={`bc-${index}`} className="flex items-center gap-2">
             {index > 0 && (
               <svg
                 className="text-white/20"

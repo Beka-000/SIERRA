@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type Permission } from "@/lib/permissions";
@@ -47,6 +48,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       permission: "orders.view",
     },
     {
+      // Аккордеон — показывает только Категории и Товары (Модификаторы убраны)
       label: "Меню",
       href: "/admin/menu",
       icon: (
@@ -58,8 +60,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       permission: "products.view",
       children: [
         { label: "Категории", href: "/admin/menu/categories", icon: null, permission: "categories.view" },
-        { label: "Товары", href: "/admin/menu/products", icon: null, permission: "products.view" },
-        { label: "Модификаторы", href: "/admin/menu/modifiers", icon: null, permission: "products.view" },
+        { label: "Товары",    href: "/admin/menu/products",   icon: null, permission: "products.view"  },
       ],
     },
     {
@@ -95,18 +96,6 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       permission: "reviews.view",
     },
     {
-      label: "Аналитика",
-      href: "/admin/analytics",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-      ),
-      permission: "analytics.view",
-    },
-    {
       label: "Аудит",
       href: "/admin/audit",
       icon: (
@@ -123,9 +112,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   ];
 
   const isActive = (href: string) => {
-    if (href === "/admin/dashboard") {
-      return pathname === href;
-    }
+    if (href === "/admin/dashboard") return pathname === href;
     return pathname.startsWith(href);
   };
 
@@ -142,7 +129,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 h-full w-64 bg-[#0f0d0b] border-r border-white/[0.06] z-50 
+          fixed top-0 left-0 h-full w-64 bg-[#0f0d0b] border-r border-white/[0.06] z-50
           transition-transform duration-300 lg:translate-x-0
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
         `}
@@ -161,6 +148,12 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
               item={item}
               isActive={isActive}
               onClose={onClose}
+              // Открываем подменю сразу, если одна из дочерних страниц активна
+              defaultOpen={
+                item.children
+                  ? item.children.some((c) => pathname.startsWith(c.href))
+                  : false
+              }
             />
           ))}
         </nav>
@@ -169,57 +162,89 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   );
 }
 
+// ─── Компонент одного пункта навигации ────────────────────────────────────────
+
 function NavItemComponent({
   item,
   isActive,
   onClose,
+  defaultOpen,
 }: {
   item: NavItem;
   isActive: (href: string) => boolean;
   onClose: () => void;
+  defaultOpen?: boolean;
 }) {
+  // Локальное состояние раскрытия аккордеона
+  const [open, setOpen] = useState(defaultOpen ?? false);
+
   const active = isActive(item.href);
 
+  // ── Пункт с подменю (аккордеон) ────────────────────────────────────────────
   if (item.children && item.children.length > 0) {
     return (
       <div>
-        <Link
-          href={item.href}
-          onClick={onClose}
+        {/* Кнопка-переключатель — не делает навигацию */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
           className={`
-            flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition
-            ${active ? "bg-[#c9a96e]/10 text-[#c9a96e]" : "text-white/60 hover:bg-white/[0.04] hover:text-white"}
+            w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition
+            ${active
+              ? "bg-[#c9a96e]/10 text-[#c9a96e]"
+              : "text-white/60 hover:bg-white/[0.04] hover:text-white"}
           `}
         >
           {item.icon}
-          <span>{item.label}</span>
-        </Link>
-        <div className="ml-9 mt-1 space-y-1">
-          {item.children.map((child) => (
-            <Link
-              key={child.href}
-              href={child.href}
-              onClick={onClose}
-              className={`
-                block px-3 py-2 rounded-lg text-xs font-medium transition
-                ${isActive(child.href) ? "bg-[#c9a96e]/10 text-[#c9a96e]" : "text-white/50 hover:bg-white/[0.04] hover:text-white/70"}
-              `}
-            >
-              {child.label}
-            </Link>
-          ))}
-        </div>
+          <span className="flex-1 text-left">{item.label}</span>
+          {/* Шеврон — поворачивается при раскрытии */}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          >
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+
+        {/* Подменю — показывается/скрывается по флагу open */}
+        {open && (
+          <div className="ml-9 mt-1 space-y-1">
+            {item.children.map((child) => (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={onClose}
+                className={`
+                  block px-3 py-2 rounded-lg text-xs font-medium transition
+                  ${isActive(child.href)
+                    ? "bg-[#c9a96e]/10 text-[#c9a96e]"
+                    : "text-white/50 hover:bg-white/[0.04] hover:text-white/70"}
+                `}
+              >
+                {child.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
+  // ── Обычный пункт без подменю ───────────────────────────────────────────────
   return (
     <Link
       href={item.href}
       onClick={onClose}
       className={`
         flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition
-        ${active ? "bg-[#c9a96e]/10 text-[#c9a96e]" : "text-white/60 hover:bg-white/[0.04] hover:text-white"}
+        ${active
+          ? "bg-[#c9a96e]/10 text-[#c9a96e]"
+          : "text-white/60 hover:bg-white/[0.04] hover:text-white"}
       `}
     >
       {item.icon}

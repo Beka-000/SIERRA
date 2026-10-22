@@ -23,6 +23,7 @@ export default function Navbar() {
     { label: i18n.nav.menu,     href: "/menu" },
     { label: i18n.nav.about,    href: "/about" },
     { label: i18n.nav.reviews,  href: "/reviews" },
+    { label: i18n.nav.branches, href: "/branches" },
     { label: i18n.nav.booking,  href: "/#booking" },
     { label: i18n.nav.contacts, href: "/contacts" },
   ];

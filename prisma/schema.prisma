@@ -119,9 +119,12 @@ model User {
   isBlocked             Boolean   @default(false) @map("is_blocked")
   blockedReason         String?   @map("blocked_reason")
   blockedAt             DateTime? @map("blocked_at")
+  resetToken            String?   @unique @map("reset_token")
+  resetTokenExpiry      DateTime? @map("reset_token_expiry")
   blockedBy             String?   @map("blocked_by")
   lastSeenAt            DateTime? @map("last_seen_at")
   notificationsConsent  Boolean   @default(false) @map("notifications_consent")
+  phoneVerified         Boolean   @default(false) @map("phone_verified")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
