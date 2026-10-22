@@ -51,6 +51,7 @@ export default function ProductModal({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadedFileId, setUploadedFileId] = useState<string | null>(null);
+  const [photoNeedsSave, setPhotoNeedsSave] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -86,6 +87,7 @@ export default function ProductModal({
         });
         setUploadedFileId(product.photoFileId || null);
         setImagePreview(product.photoFile?.url || null);
+        setPhotoNeedsSave(false);
       } else {
         // Режим создания
         resetForm();
@@ -109,6 +111,7 @@ export default function ProductModal({
     });
     setImagePreview(null);
     setUploadedFileId(null);
+    setPhotoNeedsSave(false);
     setErrors({});
   }
 
@@ -179,7 +182,11 @@ export default function ProductModal({
       // Show the persisted Cloudinary image, so the preview reflects what will
       // be attached to the product when the user saves the form.
       setImagePreview(data.url);
-      success("Успешно", "Изображение загружено");
+      setPhotoNeedsSave(true);
+      success(
+        "Фото загружено",
+        `Нажмите «${product?.id ? "Сохранить изменения" : "Сохранить товар"}», чтобы показать его в меню.`
+      );
     } catch (err) {
       console.error("[Image Upload Error]", err);
       showError("Ошибка", err instanceof Error ? err.message : "Не удалось загрузить изображение");
@@ -192,6 +199,7 @@ export default function ProductModal({
   function handleRemoveImage() {
     setImagePreview(null);
     setUploadedFileId(null);
+    setPhotoNeedsSave(true);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -239,6 +247,7 @@ export default function ProductModal({
       }
 
       success("Успешно", product?.id ? "Товар обновлён" : "Товар создан");
+      setPhotoNeedsSave(false);
       onSave();
       onClose();
     } catch (err) {
@@ -374,6 +383,13 @@ export default function ProductModal({
               className="hidden"
             />
           </div>
+          {photoNeedsSave && (
+            <p role="status" className="mt-2 text-sm text-[#c9a96e]">
+              {imagePreview
+                ? `Фото уже в Cloudinary. Нажмите «${product?.id ? "Сохранить изменения" : "Сохранить товар"}» внизу формы, чтобы прикрепить его.`
+                : `Удаление фото применится после нажатия «${product?.id ? "Сохранить изменения" : "Сохранить товар"}».`}
+            </p>
+          )}
         </div>
 
         {/* Состав */}
