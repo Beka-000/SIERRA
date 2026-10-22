@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Table from "../../components/ui/Table";
 import Badge from "../../components/ui/Badge";
@@ -113,6 +113,25 @@ export default function ProductsPage() {
   function handleSaveProduct() {
     fetchProducts();
   }
+
+  // Keep the modal's product prop stable across unrelated page/context renders.
+  // ProductModal uses it to initialize form state; recreating this object on
+  // every render discarded a newly uploaded photo after the success toast.
+  const modalProduct = useMemo(() => editingProduct ? {
+    id: editingProduct.id,
+    title: editingProduct.title,
+    categoryId: editingProduct.category.id,
+    price: editingProduct.price,
+    weightOrVolume: editingProduct.weightOrVolume || undefined,
+    composition: editingProduct.composition || undefined,
+    description: editingProduct.description || undefined,
+    photoFileId: editingProduct.photoFileId || undefined,
+    photoFile: editingProduct.photoFile || undefined,
+    isAvailable: editingProduct.isAvailable,
+    isRecommended: editingProduct.isRecommended,
+    calories: editingProduct.calories || undefined,
+    allergens: editingProduct.allergens || undefined,
+  } : null, [editingProduct]);
 
   async function handleDeleteProduct(productId: string) {
     setDeleting(true);
@@ -317,21 +336,7 @@ export default function ProductsPage() {
         isOpen={modalOpen}
         onClose={handleCloseModal}
         onSave={handleSaveProduct}
-        product={editingProduct ? {
-          id: editingProduct.id,
-          title: editingProduct.title,
-          categoryId: editingProduct.category.id,
-          price: editingProduct.price,
-          weightOrVolume: editingProduct.weightOrVolume || undefined,
-          composition: editingProduct.composition || undefined,
-          description: editingProduct.description || undefined,
-          photoFileId: editingProduct.photoFileId || undefined,
-          photoFile: editingProduct.photoFile || undefined,
-          isAvailable: editingProduct.isAvailable,
-          isRecommended: editingProduct.isRecommended,
-          calories: editingProduct.calories || undefined,
-          allergens: editingProduct.allergens || undefined,
-        } : null}
+        product={modalProduct}
         categories={categories}
       />
 
