@@ -1,17 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest, isAdminRole } from "@/lib/auth";
 
-/**
- * Защита маршрутов:
- *
- * /admin/login        — только для гостей (авторизованных редиректим в дашборд)
- * /admin/otp          — только для гостей
- * /admin/*            — только для admin/manager
- * /dashboard/*        — только для авторизованных клиентов (не admin)
- */
-
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // CORS preflight — всегда пропускаем
+  if (req.method === "OPTIONS") {
+    return NextResponse.next();
+  }
 
   // Публичные пути — пропускаем без проверки
   const isPublicAdminAuth =
