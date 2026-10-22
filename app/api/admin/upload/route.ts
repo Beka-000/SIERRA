@@ -15,6 +15,31 @@ export const runtime = "nodejs";
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"] as const;
 
+let cloudinarySdkImport: Promise<typeof import("cloudinary")> | undefined;
+
+function loadCloudinarySdk(ignoreInvalidUrl: boolean) {
+  if (!cloudinarySdkImport) {
+    if (!ignoreInvalidUrl) {
+      cloudinarySdkImport = import("cloudinary");
+    } else {
+      // The SDK parses CLOUDINARY_URL while importing, before config() can
+      // apply the separate credentials. Ignore a malformed, redundant URL
+      // during that one-time import; the caller configures the SDK explicitly.
+      const originalUrl = process.env.CLOUDINARY_URL;
+      delete process.env.CLOUDINARY_URL;
+      cloudinarySdkImport = import("cloudinary").finally(() => {
+        if (originalUrl === undefined) {
+          delete process.env.CLOUDINARY_URL;
+        } else {
+          process.env.CLOUDINARY_URL = originalUrl;
+        }
+      });
+    }
+  }
+
+  return cloudinarySdkImport;
+}
+
 export async function POST(request: NextRequest) {
   // ── 1. Проверка прав ────────────────────────────────────────────────────────
   const auth = await requireAuth(request, "products.create");
@@ -28,12 +53,13 @@ export async function POST(request: NextRequest) {
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
     const cloudinaryUrl = process.env.CLOUDINARY_URL;
     const hasExplicitCredentials = Boolean(cloudName && apiKey && apiSecret);
+    const hasValidCloudinaryUrl = Boolean(cloudinaryUrl?.toLowerCase().startsWith("cloudinary://"));
 
-    if (!hasExplicitCredentials && !cloudinaryUrl) {
+    if (!hasExplicitCredentials && !hasValidCloudinaryUrl) {
       const missing = [
-        !cloudName && !cloudinaryUrl && "CLOUDINARY_CLOUD_NAME (or CLOUDINARY_URL)",
-        !apiKey && !cloudinaryUrl && "CLOUDINARY_API_KEY (or CLOUDINARY_URL)",
-        !apiSecret && !cloudinaryUrl && "CLOUDINARY_API_SECRET (or CLOUDINARY_URL)",
+        !cloudName && !hasValidCloudinaryUrl && "CLOUDINARY_CLOUD_NAME (or valid CLOUDINARY_URL)",
+        !apiKey && !hasValidCloudinaryUrl && "CLOUDINARY_API_KEY (or valid CLOUDINARY_URL)",
+        !apiSecret && !hasValidCloudinaryUrl && "CLOUDINARY_API_SECRET (or valid CLOUDINARY_URL)",
       ].filter(Boolean).join(", ");
 
       console.error(`[Upload] Cloudinary is not configured; missing: ${missing}`);
@@ -80,9 +106,12 @@ export async function POST(request: NextRequest) {
     const dataUri = `data:${file.type};base64,${base64}`;
 
     // ── 5. Динамически импортируем cloudinary и конфигурируем ─────────────────
-    // Импорт внутри функции гарантирует что env vars уже доступны
+    // The SDK reads CLOUDINARY_URL during import, so bypass a malformed
+    // redundant URL when all three explicit credentials are available.
+    stage = "Cloudinary SDK import";
     console.log("[Upload] Importing cloudinary SDK...");
-    const { v2: cloudinary } = await import("cloudinary");
+    const ignoreInvalidUrl = Boolean(hasExplicitCredentials && cloudinaryUrl && !hasValidCloudinaryUrl);
+    const { v2: cloudinary } = await loadCloudinarySdk(ignoreInvalidUrl);
 
     // Cloudinary supports both three separate credentials and the single
     // CLOUDINARY_URL format commonly supplied by Vercel integrations.
