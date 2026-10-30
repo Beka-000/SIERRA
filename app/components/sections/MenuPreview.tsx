@@ -38,9 +38,18 @@ export default function MenuPreview() {
         const categoriesData = await categoriesRes.json();
         setCategories(categoriesData.categories?.slice(0, 4) || []);
 
-        const productsRes = await fetch("/api/products?recommended=true&limit=6");
-        const productsData = await productsRes.json();
-        setProducts(productsData.products || []);
+        // Сначала пробуем получить рекомендованные товары (isRecommended = true)
+        const recommendedRes = await fetch("/api/products?recommended=true&limit=6");
+        const recommendedData = await recommendedRes.json();
+
+        if (recommendedData.products?.length > 0) {
+          setProducts(recommendedData.products);
+        } else {
+          // Фоллбэк: если нет рекомендованных — берём первые 6 доступных товаров
+          const fallbackRes = await fetch("/api/products?sortBy=recommended&limit=6");
+          const fallbackData = await fallbackRes.json();
+          setProducts(fallbackData.products || []);
+        }
       } catch (error) {
         console.error("Failed to load menu preview:", error);
       }
@@ -111,8 +120,27 @@ export default function MenuPreview() {
                   </span>
                 )}
 
-                <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center text-2xl mb-5">
-                  ☕
+                <div className="w-full h-44 rounded-xl overflow-hidden mb-5 bg-white/[0.03]">
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        // URL недоступен — скрываем img, родитель покажет заглушку
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    // Заглушка когда изображения нет
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-white/10">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                      </svg>
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-xs text-[rgba(245,240,232,0.35)] mb-1.5">
