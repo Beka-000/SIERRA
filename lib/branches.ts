@@ -2,7 +2,11 @@
  * lib/branches.ts
  *
  * Единое место хранения всех данных о филиалах SIERRA Coffee.
- * Чтобы изменить адрес, телефон или статус — правь только этот файл.
+ * Чтобы изменить адрес, телефон, статус или координаты — правь только этот файл.
+ *
+ * Координаты (lat/lng) используются для маркеров на карте 2ГИС.
+ * Источники координат указаны в комментариях к каждому филиалу.
+ * Если координаты null — маркер на карте не отображается.
  */
 
 export type BranchStatus =
@@ -15,12 +19,15 @@ export interface Branch {
   name:        string;
   address:     string;
   phone:       string | null;    // null = не подтверждён
-  phoneNote?:  string;           // пометка к телефону (например, об альтернативном номере)
+  phoneNote?:  string;           // пометка к телефону
   hours?:      string;           // режим работы (если известен)
-  mapsQuery:   string;           // поисковый запрос для Google Maps
+  mapsQuery:   string;           // поисковый запрос для 2ГИС
   status:      BranchStatus;
   statusNote?: string;           // примечание к статусу
   isPublic:    boolean;          // показывать ли на публичном сайте
+  // Координаты для карты 2ГИС. null = нет данных, маркер не показывается.
+  lat:         number | null;
+  lng:         number | null;
 }
 
 export const BRANCHES: Branch[] = [
@@ -32,6 +39,9 @@ export const BRANCHES: Branch[] = [
     mapsQuery: "SIERRA Coffee Манас пр. Манаса 57/1 Бишкек",
     status:    "open",
     isPublic:  true,
+    // Источник: OSM Nominatim — найден как «Sierra Coffee», way 160749112
+    lat: 42.8746,
+    lng: 74.5886,
   },
   {
     id:        "dushanbinka",
@@ -41,6 +51,9 @@ export const BRANCHES: Branch[] = [
     mapsQuery: "SIERRA Coffee Душанбинка ул. Токтоналиева 62 Бишкек",
     status:    "open",
     isPublic:  true,
+    // Источник: OSM Nominatim — здание №62 по ул. Токтоналиева А., way 52704001
+    lat: 42.8442,
+    lng: 74.5925,
   },
   {
     id:        "ak-emir",
@@ -50,6 +63,9 @@ export const BRANCHES: Branch[] = [
     mapsQuery: "SIERRA Coffee Ак-Эмир ул. Московская 69 Бишкек",
     status:    "open",
     isPublic:  true,
+    // Источник: OSM Nominatim — здание №69 по ул. Московская, way 53017679
+    lat: 42.8694,
+    lng: 74.6125,
   },
   {
     id:        "auca",
@@ -59,27 +75,35 @@ export const BRANCHES: Branch[] = [
     mapsQuery: "AUCA Бишкек ул. Аалы Токомбаева 7/6",
     status:    "open",
     isPublic:  true,
+    // Источник: OSM Nominatim — кампус AUCA, relation 13341522
+    lat: 42.8117,
+    lng: 74.6271,
   },
   {
     id:        "asyl-tash",
     name:      "SIERRA Coffee Asyl Tash",
     address:   "ул. Ибраимова, 115/1, БЦ Asyl Tash, Бишкек",
-    // Основной номер. Альтернативный: +996770969630 — см. phoneNote
     phone:      "+996770969637",
     phoneNote:  "В некоторых справочниках указан также +996 770 969 630",
     mapsQuery:  "БЦ Asyl Tash ул. Ибраимова 115/1 Бишкек",
     status:     "open",
     isPublic:   true,
+    // Источник: OSM Nominatim — здание «Асыл-Таш» №115 по ул. Ибраимова, way 619670367
+    lat: 42.8740,
+    lng: 74.6198,
   },
   {
     id:          "igemberdieva",
     name:        "SIERRA Coffee — Игембердиева",
     address:     "ул. Игембердиева, 1/а, Бишкек",
-    phone:       null,         // телефон не подтверждён
+    phone:       null,
     mapsQuery:   "ул. Игембердиева 1а Бишкек",
     status:      "open",
     statusNote:  "Телефон уточняется",
     isPublic:    true,
+    // Координаты не найдены в надёжных источниках — маркер не отображается
+    lat: null,
+    lng: null,
   },
   {
     id:          "airport",
@@ -90,6 +114,9 @@ export const BRANCHES: Branch[] = [
     status:      "unconfirmed",
     statusNote:  "Актуальность работы филиала уточняется",
     isPublic:    true,
+    // Источник: ICAO UCFM / IATA FRU, подтверждено несколькими авиационными базами данных
+    lat: 43.0613,
+    lng: 74.4776,
   },
   {
     id:          "optima-hq",
@@ -100,12 +127,20 @@ export const BRANCHES: Branch[] = [
     status:      "unconfirmed",
     statusNote:  "Может быть корпоративным объектом — уточните перед визитом",
     isPublic:    true,
+    // Источник: OSM Nominatim — здание 95/1 по просп. Чынгыза Айтматова, way 452349436
+    lat: 42.8394,
+    lng: 74.5831,
   },
 ];
 
 /** Только публичные, не скрытые филиалы */
 export function getPublicBranches(): Branch[] {
   return BRANCHES.filter((b) => b.isPublic && b.status !== "hidden");
+}
+
+/** Только публичные филиалы с известными координатами (для маркеров на карте) */
+export function getMappableBranches(): Branch[] {
+  return getPublicBranches().filter((b) => b.lat !== null && b.lng !== null);
 }
 
 /** Форматирует телефон для отображения: +996770969664 → +996 770 969 664 */

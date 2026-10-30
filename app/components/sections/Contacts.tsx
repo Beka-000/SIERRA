@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useLocale } from "@/lib/LocaleContext";
 import { t } from "@/lib/i18n";
 
-const LeafletMap = dynamic(() => import("@/app/components/LeafletMap"), {
+const TwoGisMap = dynamic(() => import("@/app/components/TwoGisMap"), {
   ssr: false,
   loading: () => (
     <ContactsMapLoading />
@@ -174,7 +174,7 @@ export default function Contacts() {
             </div>
           </div>
 
-          {/* Правая — карта */}
+          {/* Правая — карта 2ГИС */}
           <div className="rounded-2xl bg-[#211A15] border border-white/[0.07] overflow-hidden flex flex-col min-h-[400px]">
             <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
@@ -182,16 +182,14 @@ export default function Contacts() {
                 <span className="text-sm text-[#B8AA98]">{i18n.contacts.mapTitle}</span>
               </div>
               <a
-                href="https://www.google.com/maps/search/?api=1&query=42.8746,74.5698"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/branches"
                 className="text-xs text-[#D9B66F] hover:text-[#e8c87a] transition"
               >
-                {i18n.contacts.mapBtn}
+                Все филиалы →
               </a>
             </div>
-            <div className="flex-1 relative">
-              <LeafletMap />
+            <div className="flex-1 relative min-h-[340px]">
+              <TwoGisMap height="100%" />
             </div>
           </div>
 
