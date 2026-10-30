@@ -45,7 +45,13 @@ export type Permission =
   | "settings.view"
   | "settings.update"
   // Audit
-  | "audit.view";
+  | "audit.view"
+  // Reservations
+  | "reservations.view"
+  | "reservations.create"
+  | "reservations.update"
+  | "reservations.status_change"
+  | "reservations.delete";
 
 // ─── Типы ролей ───────────────────────────────────────────────────────────────
 
@@ -152,6 +158,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "analytics.view", "analytics.export",
     "settings.view", "settings.update",
     "audit.view",
+    "reservations.view", "reservations.create", "reservations.update", "reservations.status_change", "reservations.delete",
   ],
 
   /** Менеджер — управление операциями, без назначения ролей */
@@ -163,6 +170,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "promocodes.view", "promocodes.create", "promocodes.update",
     "reviews.view", "reviews.moderate",
     "analytics.view",
+    "reservations.view", "reservations.update", "reservations.status_change",
   ],
 
   /** Кассир — только заказы */
@@ -191,6 +199,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "orders.view", "orders.status_change",
     "products.view",
     "categories.view",
+    "reservations.view", "reservations.status_change",
   ],
 
   /** Клиент — нет прав на admin-панель */

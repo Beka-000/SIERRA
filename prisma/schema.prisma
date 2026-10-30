@@ -428,20 +428,23 @@ model Table {
 
 model Reservation {
   id              String            @id @default(uuid())
-  tableId         String            @map("table_id")
+  tableId         String?           @map("table_id")       // назначается администратором после подтверждения
   userId          String?           @map("user_id")
   customerName    String            @map("customer_name")
   customerPhone   String            @map("customer_phone")
+  branchId        String?           @map("branch_id")      // id из lib/branches.ts (без FK)
   date            DateTime          @db.Date
   startTime       DateTime          @map("start_time") @db.Time
-  durationMinutes Int               @map("duration_minutes")
+  durationMinutes Int               @default(90) @map("duration_minutes")
   guestsCount     Int               @map("guests_count")
   comment         String?
+  adminComment    String?           @map("admin_comment")  // внутренний комментарий сотрудника
+  changedBy       String?           @map("changed_by")     // userId последнего изменившего статус
   status          ReservationStatus @default(PENDING)
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
-  table           Table             @relation(fields: [tableId], references: [id])
+  table           Table?            @relation(fields: [tableId], references: [id])
   user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("reservations")
