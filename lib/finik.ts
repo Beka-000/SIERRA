@@ -125,27 +125,49 @@ export async function createFinikPayment(data: CreatePaymentData): Promise<strin
   const timestamp = Date.now().toString();
   const paymentId = crypto.randomUUID();
 
-  // Получаем APP_URL из переменных окружения
-  const APP_URL = (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  // APP_URL берётся ТОЛЬКО из NEXT_PUBLIC_APP_URL (серверная переменная).
+  // NEXTAUTH_URL намеренно НЕ используется — это другая переменная Next-Auth,
+  // которая может указывать на неверный домен в production.
+  // Никогда не читаем APP_URL из заголовка Host — это небезопасно.
+  const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+  // Защита от случайной отправки localhost-URL в production
+  if (FINIK_ENV === 'prod' && APP_URL.includes('localhost')) {
+    throw new Error(
+      'NEXT_PUBLIC_APP_URL must be set to the production domain (e.g. https://sierra-coffee.kg) ' +
+      'when FINIK_ENV=prod. Got: ' + APP_URL
+    );
+  }
+
+  console.log('[Finik] Creating payment:', {
+    env:      FINIK_ENV,
+    orderId:  data.orderId,
+    amount:   data.amount,
+    returnTo: `${APP_URL}/payment-success`,
+    webhook:  `${APP_URL}/api/finik/webhook`,
+    // НЕ логируем paymentId, userId — достаточно orderId для отладки
+  });
 
   // Тело запроса согласно документации Finik
   const body = {
     Amount: data.amount,
     CardType: 'FINIK_QR',
     PaymentId: paymentId,
-    RedirectUrl: `${APP_URL}/payment-success?orderId=${data.orderId}&payment=success`,
+    // RedirectUrl — только orderId. Статус НЕ читаем из URL-параметров —
+    // подлинный статус устанавливается только через webhook на сервере.
+    RedirectUrl: `${APP_URL}/payment-success?orderId=${data.orderId}`,
     Data: {
       accountId: FINIK_ACCOUNT_ID,
-      merchantCategoryCode: '5812', // Код категории: рестораны и кафе
+      merchantCategoryCode: '5812',
       name_en: 'Sierra Coffee',
       description: data.orderDescription,
       webhookUrl: `${APP_URL}/api/finik/webhook`,
       metadata: JSON.stringify({
-        userId: data.userId,
         orderId: data.orderId,
-        paymentId: paymentId
-      })
-    }
+        paymentId: paymentId,
+        // userId не включаем в metadata: он не нужен для верификации платежа
+      }),
+    },
   };
 
   // Создание подписи для запроса
@@ -198,12 +220,6 @@ export async function createFinikPayment(data: CreatePaymentData): Promise<strin
     if (!paymentUrl) {
       throw new Error('Payment URL not found in response');
     }
-    
-    // Проверяем статус в URL
-    if (paymentUrl.includes('status=failed')) {
-      console.error('Payment URL contains status=failed');
-    }
-    
     return paymentUrl;
   }
 
