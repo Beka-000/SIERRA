@@ -151,3 +151,17 @@ export function formatPhone(raw: string): string {
   }
   return raw;
 }
+
+/**
+ * Филиалы, доступные для самовывоза заказа.
+ * Только со статусом "open" (не unconfirmed и не hidden).
+ * Используется на странице оформления заказа.
+ */
+export function getPickupBranches(): Branch[] {
+  return BRANCHES.filter((b) => b.isPublic && b.status === "open");
+}
+
+/** Ищет филиал по ID среди всех активных (для серверной валидации). */
+export function findPickupBranchById(id: string): Branch | undefined {
+  return getPickupBranches().find((b) => b.id === id);
+}

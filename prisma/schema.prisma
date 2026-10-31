@@ -345,6 +345,7 @@ model Order {
   customerEmail   String?         @map("customer_email")
   fulfillmentType FulfillmentType @map("fulfillment_type")
   deliveryAddress String?         @map("delivery_address")
+  pickupBranchId  String?         @map("pickup_branch_id")   // id из lib/branches.ts, только для pickup
   desiredTime     DateTime?       @map("desired_time")
   comment         String?
   paymentMethod   PaymentMethod   @map("payment_method")

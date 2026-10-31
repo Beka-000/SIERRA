@@ -29,8 +29,63 @@ export async function sendMessage(chatId: string | number, text: string): Promis
 
 // ─── Уведомление о новом заказе ─────────────────────────────────────────────
 
-export async function sendTelegramOrder(order: any) {
-  const text = `🧾 <b>Новый заказ #${order.id.slice(0, 8)}</b>\n\nКлиент: ${order.customerName || "Гость"}\nТелефон: ${order.customerPhone || "-"}\nСумма: ${order.total} сом\nАдрес: ${order.address || "Самовывоз"}`;
+interface TelegramOrderPayload {
+  orderId:          string;
+  orderNumber:      string;
+  customerName:     string;
+  customerPhone:    string;
+  fulfillmentType:  "dine_in" | "pickup" | "delivery";
+  deliveryAddress:  string | null;
+  pickupBranchId?:  string | null;
+  pickupBranchName?: string | null;
+  comment:          string | null;
+  totalAmount:      number;
+  discountAmount:   number;
+  items: Array<{ title: string; quantity: number; unitPrice: number }>;
+}
+
+export async function sendTelegramOrder(order: TelegramOrderPayload) {
+  const isPickup   = order.fulfillmentType === "pickup";
+  const isDelivery = order.fulfillmentType === "delivery";
+
+  // Строка способа получения
+  let fulfillmentLine: string;
+  if (isPickup) {
+    fulfillmentLine = order.pickupBranchName
+      ? `🏠 Самовывоз: <b>${order.pickupBranchName}</b>`
+      : "🏠 Самовывоз";
+    if (order.deliveryAddress) {
+      fulfillmentLine += `\n📍 ${order.deliveryAddress}`;
+    }
+  } else if (isDelivery) {
+    fulfillmentLine = `🚗 Доставка: ${order.deliveryAddress || "адрес не указан"}`;
+  } else {
+    fulfillmentLine = "🪑 В заведении";
+  }
+
+  // Состав заказа
+  const itemLines = order.items
+    .map((i) => `  • ${i.title} × ${i.quantity} = ${(i.unitPrice * i.quantity).toLocaleString("ru")} с`)
+    .join("\n");
+
+  const discountLine =
+    order.discountAmount > 0
+      ? `\nСкидка: -${order.discountAmount.toLocaleString("ru")} с`
+      : "";
+
+  const commentLine = order.comment ? `\n💬 ${order.comment}` : "";
+
+  const text =
+    `🧾 <b>Новый заказ #${order.orderNumber}</b>\n` +
+    `\n👤 ${order.customerName}\n` +
+    `📞 ${order.customerPhone}\n` +
+    `${fulfillmentLine}\n` +
+    `${commentLine}` +
+    `\n─────────────────\n` +
+    `${itemLines}\n` +
+    `─────────────────\n` +
+    `${discountLine ? discountLine + "\n" : ""}` +
+    `💰 Итого: <b>${order.totalAmount.toLocaleString("ru")} с</b>`;
 
   await sendMessage(ADMIN_CHAT_ID, text);
 }

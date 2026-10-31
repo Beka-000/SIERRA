@@ -7,6 +7,7 @@ import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import Select from "../../components/ui/Select";
 import { useToast } from "@/lib/ToastContext";
+import { BRANCHES } from "@/lib/branches";
 
 // ─── Интерфейсы ──────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ interface OrderDetails {
   customerEmail: string | null;
   fulfillmentType: string;
   deliveryAddress: string | null;
+  pickupBranchId: string | null;
   desiredTime: string | null;
   comment: string | null;
   paymentMethod: string;
@@ -225,6 +227,11 @@ export default function OrderDetailPage() {
 
   const lastPayment = order.payments?.[0] ?? null;
   const isOnlineOrder = order.paymentMethod === "online";
+
+  // Название филиала самовывоза (из статического списка)
+  const pickupBranch = order.pickupBranchId
+    ? BRANCHES.find((b) => b.id === order.pickupBranchId) ?? null
+    : null;
 
   return (
     <div>
@@ -438,7 +445,31 @@ export default function OrderDetailPage() {
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Тип</p>
                 <p className="text-sm text-white">{FULFILLMENT_LABELS[order.fulfillmentType] ?? order.fulfillmentType}</p>
               </div>
-              {order.deliveryAddress && (
+              {/* Филиал самовывоза */}
+              {order.fulfillmentType === "pickup" && (
+                <div>
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Кофейня</p>
+                  {pickupBranch ? (
+                    <>
+                      <p className="text-sm font-medium text-[#c9a96e]">{pickupBranch.name}</p>
+                      <p className="text-xs text-white/50 mt-0.5">{pickupBranch.address}</p>
+                      {pickupBranch.phone && (
+                        <a
+                          href={`tel:${pickupBranch.phone}`}
+                          className="text-xs text-white/40 hover:text-[#c9a96e] transition mt-0.5 block"
+                        >
+                          {pickupBranch.phone}
+                        </a>
+                      )}
+                    </>
+                  ) : order.deliveryAddress ? (
+                    <p className="text-sm text-white">{order.deliveryAddress}</p>
+                  ) : (
+                    <p className="text-sm text-white/40 italic">Не указана</p>
+                  )}
+                </div>
+              )}
+              {order.deliveryAddress && order.fulfillmentType !== "pickup" && (
                 <div>
                   <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Адрес</p>
                   <p className="text-sm text-white">{order.deliveryAddress}</p>

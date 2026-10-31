@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createFinikPayment } from "@/lib/finik";
 import { serializeBigInt } from "@/lib/bigint-utils";
 import { sendTelegramOrder } from "@/lib/telegram";
+import { findPickupBranchById } from "@/lib/branches";
 
 /**
  * POST /api/orders
@@ -28,8 +29,9 @@ export async function POST(request: NextRequest) {
       customerEmail,
       deliveryType, // "delivery" | "pickup"
       deliveryAddress,
+      pickupBranchId, // ID филиала для самовывоза (из lib/branches.ts)
       comment,
-      promocode, // Промокод для применения скидки
+      promocode,
     } = body;
 
     // Валидация обязательных полей
@@ -45,6 +47,31 @@ export async function POST(request: NextRequest) {
         { error: "Delivery address is required for delivery orders" },
         { status: 400 }
       );
+    }
+
+    // ── Серверная валидация филиала самовывоза ────────────────────────────
+    // Не доверяем только клиентскому выбору — проверяем по статическому списку
+    let resolvedPickupBranchId: string | null = null;
+    let resolvedPickupAddress:  string | null = null;
+    let resolvedPickupName:     string | null = null;
+
+    if (deliveryType === "pickup") {
+      if (!pickupBranchId || typeof pickupBranchId !== "string") {
+        return NextResponse.json(
+          { error: "Выберите кофейню для самовывоза" },
+          { status: 400 }
+        );
+      }
+      const branch = findPickupBranchById(pickupBranchId);
+      if (!branch) {
+        return NextResponse.json(
+          { error: "Выбранная кофейня недоступна для самовывоза" },
+          { status: 400 }
+        );
+      }
+      resolvedPickupBranchId = branch.id;
+      resolvedPickupAddress  = branch.address;
+      resolvedPickupName     = branch.name;
     }
 
     // Генерируем уникальный idempotency key для предотвращения дублирования заказов
@@ -237,14 +264,20 @@ export async function POST(request: NextRequest) {
       const order = await tx.order.create({
         data: {
           orderNumber,
-          userId: session?.userId || null,
+          userId:         session?.userId || null,
           customerName,
           customerPhone,
-          customerEmail: customerEmail || null,
+          customerEmail:  customerEmail || null,
           fulfillmentType: deliveryType === "pickup" ? "pickup" : "delivery",
-          deliveryAddress: deliveryType === "delivery" ? deliveryAddress : null,
-          comment: comment || null,
-          paymentMethod: "online",
+          // Для доставки — адрес клиента; для самовывоза — адрес выбранного филиала
+          deliveryAddress:
+            deliveryType === "delivery"
+              ? deliveryAddress
+              : resolvedPickupAddress,
+          // ID филиала самовывоза (из lib/branches.ts)
+          pickupBranchId: resolvedPickupBranchId,
+          comment:        comment || null,
+          paymentMethod:  "online",
           subtotal,
           discountAmount,
           totalAmount,
@@ -255,11 +288,7 @@ export async function POST(request: NextRequest) {
           },
         },
         include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
+          items: { include: { product: true } },
         },
       });
 
@@ -309,15 +338,17 @@ export async function POST(request: NextRequest) {
 
     // 10. Отправляем уведомление в Telegram (fire-and-forget, не блокируем ответ)
     sendTelegramOrder({
-      orderId:         result.order.id,
-      orderNumber:     result.order.orderNumber,
-      customerName:    result.order.customerName,
-      customerPhone:   result.order.customerPhone,
-      fulfillmentType: result.order.fulfillmentType as "dine_in" | "pickup" | "delivery",
-      deliveryAddress: result.order.deliveryAddress,
-      comment:         result.order.comment,
-      totalAmount:     Number(result.order.totalAmount),
-      discountAmount:  Number(result.order.discountAmount),
+      orderId:          result.order.id,
+      orderNumber:      result.order.orderNumber,
+      customerName:     result.order.customerName,
+      customerPhone:    result.order.customerPhone,
+      fulfillmentType:  result.order.fulfillmentType as "dine_in" | "pickup" | "delivery",
+      deliveryAddress:  result.order.deliveryAddress,
+      pickupBranchId:   result.order.pickupBranchId,
+      pickupBranchName: resolvedPickupName,
+      comment:          result.order.comment,
+      totalAmount:      Number(result.order.totalAmount),
+      discountAmount:   Number(result.order.discountAmount),
       items: result.order.items.map((item) => ({
         title:     item.product.title,
         quantity:  item.quantity,
